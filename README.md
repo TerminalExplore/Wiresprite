@@ -25,9 +25,7 @@ SNMP-Monitor/
 │   └── static/
 │       └── style.css          # CSS file for styling the webpage
 ├── requirements.txt           # Project dependencies (Flask, pysnmp, etc.)
-├── README.md                  # Documentation for the project
-├── setup.py                   # Installation and setup instructions
-└── .gitignore                 # Git ignore file
+└── README.md                  # Documentation for the project
 ```
 ## Installation
 1. **Clone the repository:**
