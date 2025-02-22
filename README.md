@@ -1,6 +1,7 @@
 <p align="left">
    <img src="https://img.shields.io/badge/Python-3.9-blue" alt="Python Version">
 </p>
+
 # SNMP-Monitor
 A project to monitor the status of the switch, in my case it was old switch HP ProCurve 2512, but you can take my project and modify it to suit your needs. This project uses SNMP (Simple Network Management Protocol). The script collects statistics about ports, transmitted traffic, errors and other parameters of the device. The data is displayed in the web-interface for easy network monitoring.
 
