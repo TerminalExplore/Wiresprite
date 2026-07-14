@@ -21,6 +21,7 @@ constexpr uint32_t kColIfInErrors = 14;
 constexpr uint32_t kColIfOutOctets = 16;
 constexpr uint32_t kColIfOutDiscards = 19;
 constexpr uint32_t kColIfOutErrors = 20;
+constexpr uint32_t kColIfLastChange = 9;
 
 uint64_t asCounterOrZero(const ber::Value& v) {
     if (v.tag == ber::Tag::Counter32 || v.tag == ber::Tag::Gauge32 || v.tag == ber::Tag::Counter64 ||
@@ -72,6 +73,9 @@ std::vector<IfEntry> bucketIfTableVarBinds(const std::vector<VarBind>& varbinds)
                 break;
             case kColIfOperStatus:
                 entry.ifOperStatus = asIntOrZero(vb.value);
+                break;
+            case kColIfLastChange:
+                entry.ifLastChangeTicks = static_cast<uint32_t>(asCounterOrZero(vb.value));
                 break;
             case kColIfInOctets:
                 entry.ifInOctets = asCounterOrZero(vb.value);
@@ -130,6 +134,8 @@ DevicePollResult pollIfTable(SnmpClient& client) {
     static const Oid kIfEntryBase = Oid::parse("1.3.6.1.2.1.2.2.1");
     static const Oid kIfAlias = Oid::parse("1.3.6.1.2.1.31.1.1.1.18");
     static const Oid kSysUpTime = Oid::parse("1.3.6.1.2.1.1.3.0");
+    static const Oid kBasePortIfIndex = Oid::parse("1.3.6.1.2.1.17.1.4.1.2");
+    static const Oid kFdbEntry = Oid::parse("1.3.6.1.2.1.17.4.3.1");
 
     DevicePollResult result;
     auto start = std::chrono::steady_clock::now();
@@ -148,6 +154,18 @@ DevicePollResult pollIfTable(SnmpClient& client) {
             mergeIfAlias(result.interfaces, aliasVarbinds);
         } catch (const SnmpTimeoutError&) {
             // ifXTable unsupported or unreachable; leave ifAlias empty.
+        }
+
+        // Best-effort, same reasoning as ifAlias above: BRIDGE-MIB isn't
+        // universally implemented, so a failed/empty walk just leaves
+        // macTable empty rather than failing the whole poll.
+        try {
+            std::vector<VarBind> portIndexVarbinds = client.walkSubtree(kBasePortIfIndex);
+            auto portMap = bucketBridgePortIfIndex(portIndexVarbinds);
+            std::vector<VarBind> fdbVarbinds = client.walkSubtree(kFdbEntry);
+            result.macTable = bucketMacTable(fdbVarbinds, portMap);
+        } catch (const SnmpTimeoutError&) {
+            // BRIDGE-MIB unsupported or unreachable; leave macTable empty.
         }
 
         SnmpGetResult uptime = client.get({kSysUpTime});
