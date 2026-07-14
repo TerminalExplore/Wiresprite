@@ -67,8 +67,19 @@ void registerAuthRoutes(httplib::Server& svr, SessionAuth& auth) {
             return;
         }
 
-        std::string token = auth.createSession();
-        res.set_header("Set-Cookie", std::string("session=") + token + kCookieAttrs);
+        // An unchecked checkbox isn't submitted at all by an HTML form,
+        // so presence (any value, including "on") means checked.
+        bool remember = !req.get_param_value("remember").empty();
+        std::string token = auth.createSession(remember);
+
+        std::string cookie = std::string("session=") + token + kCookieAttrs;
+        if (remember) {
+            cookie += "; Max-Age=" + std::to_string(auth.rememberMeTtlSeconds());
+        }
+        // No Max-Age at all otherwise: a session cookie, gone when the
+        // browser closes, regardless of the server-side session's own
+        // (longer) TTL — today's behavior, unchanged when not remembered.
+        res.set_header("Set-Cookie", cookie);
         res.set_redirect("/");
     });
 

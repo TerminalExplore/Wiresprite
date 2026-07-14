@@ -71,6 +71,7 @@ std::string renderIndexPage(bool authEnabled) {
 <nav class="navbar">
   <button type="button" class="nav-btn active" data-page="ports">Ports</button>
   <button type="button" class="nav-btn" data-page="overview">Overview</button>
+  <a href="/settings" class="nav-settings-link">Settings</a>
 </nav>
 <section id="page-ports" class="page active">
   <div id="summary" class="summary-grid"></div>
@@ -197,8 +198,10 @@ header h1 {
   padding-bottom: 1rem;
 }
 
-.nav-btn {
+.nav-btn,
+.nav-settings-link {
   font: inherit;
+  display: inline-block;
   padding: 0.4rem 0.9rem;
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -206,9 +209,11 @@ header h1 {
   color: var(--ink-secondary);
   cursor: pointer;
   font-size: 0.85rem;
+  text-decoration: none;
 }
 
-.nav-btn:hover {
+.nav-btn:hover,
+.nav-settings-link:hover {
   background: color-mix(in srgb, var(--ink) 6%, transparent);
 }
 
@@ -696,6 +701,12 @@ main {
   color: var(--ink-secondary);
 }
 
+.login-remember {
+  flex-direction: row !important;
+  align-items: center;
+  gap: 0.4rem !important;
+}
+
 .login-card input {
   font: inherit;
   padding: 0.4rem 0.5rem;
@@ -717,6 +728,117 @@ main {
 
 .login-card button:hover {
   background: var(--accent-hover);
+}
+
+.settings-welcome {
+  max-width: 700px;
+  margin: 1.5rem auto 1.5rem;
+  padding: 1.25rem 1.5rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.settings-welcome h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.15rem;
+}
+
+.settings-welcome p {
+  margin: 0;
+  color: var(--ink-secondary);
+  font-size: 0.9rem;
+}
+
+.settings-form {
+  max-width: 700px;
+  margin: 1.5rem auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.settings-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1.1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.settings-card h3 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.settings-card label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.85rem;
+  color: var(--ink-secondary);
+}
+
+.settings-card input,
+.settings-card select {
+  font: inherit;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--page);
+  color: var(--ink);
+}
+
+.settings-hint {
+  color: var(--ink-muted);
+  font-weight: 400;
+  font-size: 0.78rem;
+}
+
+.settings-checkbox-row {
+  flex-direction: row !important;
+  align-items: center;
+  gap: 0.4rem !important;
+}
+
+.device-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1.3fr 0.7fr 1fr 0.8fr auto;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.device-row input,
+.device-row select {
+  font: inherit;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--page);
+  color: var(--ink);
+  min-width: 0;
+}
+
+.settings-message {
+  font-size: 0.85rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  display: none;
+}
+
+.settings-message.success {
+  display: block;
+  background: var(--status-good-wash);
+  color: var(--status-good);
+}
+
+.settings-message.error {
+  display: block;
+  background: var(--status-critical-wash);
+  color: var(--status-critical);
 }
 )CSS";
 
@@ -1557,9 +1679,232 @@ std::string renderLoginPage(bool showError) {
            errorBanner + R"HTML(
     <label>Username<input type="text" name="username" autocomplete="username" autofocus></label>
     <label>Password<input type="password" name="password" autocomplete="current-password"></label>
+    <label class="login-remember"><input type="checkbox" name="remember"> Remember me</label>
     <button type="submit">Sign in</button>
   </form>
 </main>
+</body>
+</html>
+)HTML";
+}
+
+// The settings page's own script — deliberately separate from
+// kAppJs/app.js (which opens an EventSource and drives the live
+// dashboard; none of that belongs on a plain settings form) and
+// embedded inline in renderSettingsPage rather than served as its own
+// route, since it's only ever used by that one page.
+const char* const kSettingsJs = R"JS(
+function versionLabel(v) {
+  return v === "1" ? "SNMP v1" : "SNMP v2c";
+}
+
+function createDeviceRow(device) {
+  const row = document.createElement("div");
+  row.className = "device-row";
+
+  const id = document.createElement("input");
+  id.type = "text";
+  id.name = "device_id";
+  id.placeholder = "id (e.g. core-switch)";
+  id.value = device ? device.id : "";
+  row.appendChild(id);
+
+  const displayName = document.createElement("input");
+  displayName.type = "text";
+  displayName.name = "device_display_name";
+  displayName.placeholder = "Display name";
+  displayName.value = device ? device.displayName : "";
+  row.appendChild(displayName);
+
+  const host = document.createElement("input");
+  host.type = "text";
+  host.name = "device_host";
+  host.placeholder = "Host / IP";
+  host.value = device ? device.host : "";
+  row.appendChild(host);
+
+  const port = document.createElement("input");
+  port.type = "number";
+  port.name = "device_port";
+  port.placeholder = "161";
+  port.min = "1";
+  port.max = "65535";
+  port.value = device ? device.port : "";
+  row.appendChild(port);
+
+  const community = document.createElement("input");
+  community.type = "text";
+  community.name = "device_community";
+  community.placeholder = "public";
+  community.value = device ? device.community : "";
+  row.appendChild(community);
+
+  const version = document.createElement("select");
+  version.name = "device_version";
+  for (const v of ["2c", "1"]) {
+    const opt = document.createElement("option");
+    opt.value = v;
+    opt.textContent = versionLabel(v);
+    if (device && device.version === v) {
+      opt.selected = true;
+    }
+    version.appendChild(opt);
+  }
+  row.appendChild(version);
+
+  const removeBtn = document.createElement("button");
+  removeBtn.type = "button";
+  removeBtn.className = "header-button";
+  removeBtn.textContent = "Remove";
+  removeBtn.addEventListener("click", () => row.remove());
+  row.appendChild(removeBtn);
+
+  return row;
+}
+
+async function loadSettings() {
+  const res = await fetch("/api/config");
+  const config = await res.json();
+
+  document.getElementById("auth_username").value = config.auth.username;
+  document.getElementById("auth_session_ttl_minutes").value = config.auth.sessionTtlMinutes;
+  document.getElementById("auth_remember_me_days").value = config.auth.rememberMeDays;
+  document.getElementById("password-hint").textContent = config.auth.passwordSet
+    ? "(a password is currently set)"
+    : "(no password set — the dashboard is open to anyone)";
+
+  document.getElementById("polling_interval_seconds").value = config.polling.intervalSeconds;
+  document.getElementById("polling_timeout_ms").value = config.polling.timeoutMs;
+  document.getElementById("polling_retries").value = config.polling.retries;
+  document.getElementById("polling_max_concurrent_devices").value = config.polling.maxConcurrentDevices;
+  document.getElementById("polling_history_points").value = config.polling.historyPoints;
+
+  document.getElementById("http_listen_address").value = config.http.listenAddress;
+  document.getElementById("http_listen_port").value = config.http.listenPort;
+  document.getElementById("http_open_browser").checked = config.http.openBrowserOnFirstRun;
+
+  const deviceRows = document.getElementById("device-rows");
+  deviceRows.innerHTML = "";
+  for (const device of config.devices) {
+    deviceRows.appendChild(createDeviceRow(device));
+  }
+  if (config.devices.length === 0) {
+    deviceRows.appendChild(createDeviceRow(null));
+  }
+}
+
+document.getElementById("add-device").addEventListener("click", () => {
+  document.getElementById("device-rows").appendChild(createDeviceRow(null));
+});
+
+document.getElementById("settings-form").addEventListener("submit", async (evt) => {
+  evt.preventDefault();
+  const messageEl = document.getElementById("settings-message");
+  messageEl.className = "settings-message";
+  messageEl.textContent = "";
+
+  // Unchecked checkboxes are simply absent from FormData, matching the
+  // backend's "presence means checked" convention.
+  const params = new URLSearchParams();
+  for (const [key, value] of new FormData(evt.target).entries()) {
+    params.append(key, value);
+  }
+
+  try {
+    const res = await fetch("/api/config", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: params.toString(),
+    });
+    const result = await res.json();
+    if (!res.ok) {
+      messageEl.textContent = "Error: " + (result.error || "failed to save");
+      messageEl.className = "settings-message error";
+      return;
+    }
+    messageEl.textContent = "Saved. Restart wiresprite for device/polling/HTTP changes to take effect.";
+    messageEl.className = "settings-message success";
+  } catch (e) {
+    messageEl.textContent = "Error: " + e.message;
+    messageEl.className = "settings-message error";
+  }
+});
+
+loadSettings();
+)JS";
+
+std::string renderSettingsPage(bool isFirstRun) {
+    std::string welcomeBanner = isFirstRun ? R"HTML(
+  <div class="settings-welcome">
+    <h2>Welcome to Wiresprite &mdash; let's get set up</h2>
+    <p>Set a password to protect this dashboard, then add your first switch below. Nothing
+    is being polled yet.</p>
+  </div>)HTML"
+                                            : "";
+
+    return std::string(R"HTML(<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wiresprite &mdash; settings</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header>
+  <h1>)HTML" WIRESPRITE_LOGO_SVG R"HTML( Wiresprite</h1>
+  <div class="header-actions">
+    <a href="/" class="header-button">Back to dashboard</a>
+  </div>
+</header>)HTML") +
+           welcomeBanner + R"HTML(
+<form class="settings-form" id="settings-form">
+  <div class="settings-card">
+    <h3>Account</h3>
+    <label>Username<input type="text" id="auth_username" name="auth_username" autocomplete="username"></label>
+    <label>New password <span class="settings-hint" id="password-hint"></span>
+      <input type="password" id="auth_new_password" name="auth_new_password" autocomplete="new-password"
+             placeholder="Leave blank to keep current password">
+    </label>
+    <label>Session length (minutes)
+      <input type="number" id="auth_session_ttl_minutes" name="auth_session_ttl_minutes" min="1">
+    </label>
+    <label>&quot;Remember me&quot; length (days)
+      <input type="number" id="auth_remember_me_days" name="auth_remember_me_days" min="1">
+    </label>
+  </div>
+
+  <div class="settings-card">
+    <h3>Devices</h3>
+    <div id="device-rows"></div>
+    <button type="button" id="add-device" class="header-button">+ Add device</button>
+  </div>
+
+  <div class="settings-card">
+    <h3>Polling</h3>
+    <label>Interval (seconds)<input type="number" id="polling_interval_seconds" name="polling_interval_seconds" min="1"></label>
+    <label>Timeout (ms)<input type="number" id="polling_timeout_ms" name="polling_timeout_ms" min="1"></label>
+    <label>Retries<input type="number" id="polling_retries" name="polling_retries" min="0"></label>
+    <label>Max concurrent devices<input type="number" id="polling_max_concurrent_devices" name="polling_max_concurrent_devices" min="1"></label>
+    <label>History points<input type="number" id="polling_history_points" name="polling_history_points" min="2"></label>
+  </div>
+
+  <div class="settings-card">
+    <h3>HTTP server</h3>
+    <label>Listen address<input type="text" id="http_listen_address" name="http_listen_address"></label>
+    <label>Listen port<input type="number" id="http_listen_port" name="http_listen_port" min="1" max="65535"></label>
+    <label class="settings-checkbox-row">
+      <input type="checkbox" id="http_open_browser" name="http_open_browser"> Open browser on first run
+    </label>
+  </div>
+
+  <div id="settings-message" class="settings-message"></div>
+  <button type="submit" class="header-button">Save</button>
+</form>
+<script>
+)HTML" + kSettingsJs + R"HTML(
+</script>
 </body>
 </html>
 )HTML";

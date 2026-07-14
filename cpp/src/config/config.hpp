@@ -14,12 +14,14 @@ namespace wiresprite {
 struct HttpConfig {
     std::string listenAddress = "0.0.0.0";
     uint16_t listenPort = 8080;
+    bool openBrowserOnFirstRun = true; // only ever consulted on a genuine first run (see main.cpp)
 };
 
 struct AuthConfig {
     std::string username = "admin";
     std::string passwordHash; // SHA-256 hex; empty means auth is unconfigured (wired up in Phase 7)
     int sessionTtlMinutes = 60;
+    int rememberMeDays = 30; // session length when the login page's "Remember me" is checked
 };
 
 struct PollingConfig {
@@ -60,5 +62,17 @@ AppConfig parseConfig(const std::string& iniText);
 // Reads `path` and parses it. Throws ConfigError if the file can't be
 // opened, in addition to every parseConfig failure mode.
 AppConfig loadConfig(const std::string& path);
+
+// Serializes `config` back to the same INI shape parseConfig reads —
+// the inverse operation, used by the settings page (POST /api/config)
+// and by main.cpp to write out a fresh default config on first run.
+// Round-trips cleanly (parseConfig(writeConfig(c)) == c) but does not
+// preserve comments/formatting from a hand-edited file, since this is
+// only ever called to write a config the program itself generated.
+std::string writeConfig(const AppConfig& config);
+
+// Serializes and writes to `path`. Throws ConfigError if the file
+// can't be opened for writing.
+void saveConfig(const std::string& path, const AppConfig& config);
 
 } // namespace wiresprite

@@ -20,6 +20,11 @@ deploy alongside it, no runtime dependency beyond what the OS already provides (
   the moment it's opened — not a time-series database; long-term history and real alerting
   (delivery, rules, silencing) are Prometheus/Grafana/Alertmanager's job, not this
   project's (see below).
+- On a fresh install (no config file yet), starts with zero devices instead of failing,
+  opens your browser to a setup page automatically, and lets you set a password and add
+  devices from there — no hand-editing `wiresprite.ini` required. The same `/settings`
+  page stays available afterward for changing devices/polling/auth; device/polling/HTTP
+  changes need a restart to take effect, password changes apply immediately.
 - Exposes `/metrics` in Prometheus text exposition format for that long-term story.
 - Optional session-cookie login guarding the dashboard.
 

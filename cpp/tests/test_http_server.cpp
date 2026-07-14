@@ -39,7 +39,11 @@ TEST_CASE("HttpServer serves the dashboard, static assets, and /api/status") {
     result.interfaces.push_back(IfEntry{1, "eth0", "", 6, 1000000000, 1, 1, 10, 20, 0, 0, 0, 0});
     store.update("dev1", result);
 
-    HttpServer server(httpConfig, AuthConfig{}, {makeDevice("dev1", "10.0.0.1")}, store, history, sseHub);
+    // "unused-test-config.ini" is never actually touched by this
+    // TEST_CASE's subcases — only GET/POST /api/config read/write it,
+    // and none of those subcases call that route.
+    HttpServer server(httpConfig, AuthConfig{}, {makeDevice("dev1", "10.0.0.1")}, store, history, sseHub,
+                       "unused-test-config.ini");
     server.start();
 
     httplib::Client client("127.0.0.1", server.boundPort());
@@ -160,7 +164,7 @@ TEST_CASE("HttpServer::stop is safe without start, and idempotently") {
     DeviceStateStore store;
     HistoryStore history;
     SseHub sseHub;
-    HttpServer server(httpConfig, AuthConfig{}, {}, store, history, sseHub);
+    HttpServer server(httpConfig, AuthConfig{}, {}, store, history, sseHub, "unused-test-config.ini");
     server.stop();
     server.stop();
 }
@@ -182,7 +186,8 @@ TEST_CASE("HttpServer enforces session auth when configured") {
     result.reachable = true;
     store.update("dev1", result);
 
-    HttpServer server(httpConfig, authConfig, {makeDevice("dev1", "10.0.0.1")}, store, history, sseHub);
+    HttpServer server(httpConfig, authConfig, {makeDevice("dev1", "10.0.0.1")}, store, history, sseHub,
+                       "unused-test-config.ini");
     server.start();
 
     httplib::Client client("127.0.0.1", server.boundPort());
@@ -229,6 +234,17 @@ TEST_CASE("HttpServer enforces session auth when configured") {
         CHECK(res->body.find("Invalid username or password") != std::string::npos);
     }
 
+    SUBCASE("POST /login with remember=on sets a persistent cookie") {
+        auto res = client.Post(
+            "/login", httplib::Params{{"username", "admin"}, {"password", "hunter2"}, {"remember", "on"}});
+        REQUIRE(res != nullptr);
+        CHECK(res->status == 302);
+
+        std::string setCookie = res->get_header_value("Set-Cookie");
+        CHECK(setCookie.find("session=") != std::string::npos);
+        CHECK(setCookie.find("Max-Age=") != std::string::npos);
+    }
+
     SUBCASE("full login -> access -> logout flow") {
         auto loginRes = client.Post("/login", httplib::Params{{"username", "admin"}, {"password", "hunter2"}});
         REQUIRE(loginRes != nullptr);
@@ -238,6 +254,9 @@ TEST_CASE("HttpServer enforces session auth when configured") {
         std::string setCookie = loginRes->get_header_value("Set-Cookie");
         REQUIRE(setCookie.find("session=") != std::string::npos);
         REQUIRE(setCookie.find("HttpOnly") != std::string::npos);
+        // Not remembered: a plain session cookie, no Max-Age, dies when
+        // the browser closes regardless of the server-side session TTL.
+        CHECK(setCookie.find("Max-Age") == std::string::npos);
         size_t start = setCookie.find("session=") + std::string("session=").size();
         size_t end = setCookie.find(';', start);
         std::string cookieHeader = "session=" + setCookie.substr(start, end - start);

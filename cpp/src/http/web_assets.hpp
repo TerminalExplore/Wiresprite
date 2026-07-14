@@ -21,4 +21,11 @@ extern const char* const kFaviconSvg; // same spiderweb mark as the header's inl
 // plain constant like the others.
 std::string renderLoginPage(bool showError);
 
+// The settings page: devices, polling, auth, and HTTP listen settings,
+// backed by GET/POST /api/config (routes_config.cpp). `isFirstRun`
+// (no password set and no devices configured) swaps in a welcoming
+// "let's get set up" banner instead of the plain "Settings" heading —
+// same state HttpServer uses to decide whether / redirects here.
+std::string renderSettingsPage(bool isFirstRun);
+
 } // namespace wiresprite::web
