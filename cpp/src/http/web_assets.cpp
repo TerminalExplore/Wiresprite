@@ -43,7 +43,14 @@ const char* const kFaviconSvg = R"SVG(<svg xmlns="http://www.w3.org/2000/svg" vi
 </svg>
 )SVG";
 
-const char* const kIndexHtml = R"HTML(<!DOCTYPE html>
+std::string renderIndexPage(bool authEnabled) {
+    std::string logoutForm = authEnabled ? R"HTML(
+    <form method="post" action="/logout" class="logout-form">
+      <button type="submit" class="header-button">Log out</button>
+    </form>)HTML"
+                                          : "";
+
+    return std::string(R"HTML(<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -57,10 +64,8 @@ const char* const kIndexHtml = R"HTML(<!DOCTYPE html>
   <h1>)HTML" WIRESPRITE_LOGO_SVG R"HTML( Wiresprite</h1>
   <span id="last-updated">loading&hellip;</span>
   <div class="header-actions">
-    <button type="button" id="export-csv" class="header-button">Export CSV</button>
-    <form method="post" action="/logout" class="logout-form">
-      <button type="submit" class="header-button">Log out</button>
-    </form>
+    <button type="button" id="export-csv" class="header-button">Export CSV</button>)HTML") +
+           logoutForm + R"HTML(
   </div>
 </header>
 <nav class="navbar">
@@ -96,6 +101,7 @@ const char* const kIndexHtml = R"HTML(<!DOCTYPE html>
 </body>
 </html>
 )HTML";
+}
 
 // Palette and mark specs are the dataviz skill's validated reference
 // instance (references/palette.md), used verbatim rather than
