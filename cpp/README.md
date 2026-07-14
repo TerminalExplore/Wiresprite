@@ -1,7 +1,8 @@
-# snmpmon (C++ rewrite)
+# Wiresprite
 
-Lightweight, cross-platform (Windows + Linux) SNMP switch monitor. Successor to the
-Python/Flask prototype in `../app`, which stays untouched as a reference implementation.
+Lightweight, cross-platform (Windows + Linux) SNMP switch monitor. Started as a rewrite
+of an earlier Python/Flask prototype (preserved in git history, no longer part of the
+active project — see the root README's History section).
 Ships as a single self-contained binary — no Net-SNMP, no OpenSSL, no webroot directory to
 deploy alongside it, no runtime dependency beyond what the OS already provides (see
 "Runtime dependencies" below for the exact numbers on each platform).
@@ -10,9 +11,12 @@ deploy alongside it, no runtime dependency beyond what the OS already provides (
 
 - Polls one or more SNMP v1/v2c devices' standard IF-MIB `ifTable` on a configurable
   interval, in the background, concurrently (bounded by `max_concurrent_devices`).
-- Serves a small live dashboard (`/`) and JSON API (`/api/status`) over HTTP.
-- Exposes `/metrics` in Prometheus text exposition format — point a Prometheus at it and
-  graph everything in Grafana; this project doesn't store history or draw charts itself.
+- Serves a live dashboard (`/`) with a per-interface traffic sparkline (in/out, hover for
+  exact values) and JSON API (`/api/status`) over HTTP.
+- Keeps a small in-memory ring buffer (~60 samples/interface) purely so the dashboard has
+  something to plot the moment it's opened — not a time-series database; long-term history
+  and alerting are Prometheus/Grafana's job, not this project's (see below).
+- Exposes `/metrics` in Prometheus text exposition format for that long-term story.
 - Optional session-cookie login guarding the dashboard.
 
 Because it walks the standard IF-MIB rather than vendor-specific OIDs, it works against
@@ -25,7 +29,7 @@ any SNMP v1/v2c-speaking switch or router out of the box — including quite old
 src/
 ├── snmp/     hand-rolled BER/ASN.1 codec + SNMP v1/v2c client (GET/GETNEXT/GETBULK/WALK)
 │             over raw UDP sockets — no Net-SNMP dependency
-├── poll/     ifTable polling, thread-safe DeviceStateStore, background Poller
+├── poll/     ifTable polling, thread-safe DeviceStateStore + HistoryStore, background Poller
 ├── config/   hand-rolled INI parser (no JSON/YAML dependency)
 ├── auth/     SHA-256 session-cookie auth
 └── http/     cpp-httplib wiring: dashboard, /api/status, /metrics, /login, /logout
@@ -49,8 +53,8 @@ cmake --preset linux-gcc-release
 cmake --build --preset linux-gcc-release
 ```
 
-Run: `./build/<preset>/snmpmon [path/to/config.ini]` (or `snmpmon.exe` on Windows). Defaults
-to `snmpmon.ini` in the current directory if no path is given.
+Run: `./build/<preset>/wiresprite [path/to/config.ini]` (or `wiresprite.exe` on Windows). Defaults
+to `wiresprite.ini` in the current directory if no path is given.
 
 ### Runtime dependencies and binary size
 
@@ -69,7 +73,7 @@ machine) but does cost size; MSVC's static CRT is comparatively lighter-weight.
 
 ## Configuration
 
-Copy `config/snmpmon.ini.example` to `snmpmon.ini` and edit it. Full schema:
+Copy `config/wiresprite.ini.example` to `wiresprite.ini` and edit it. Full schema:
 
 ```ini
 [http]
@@ -106,19 +110,29 @@ convention (a scraper doesn't do cookie/session auth). Point Prometheus at it:
 
 ```yaml
 scrape_configs:
-  - job_name: snmpmon
+  - job_name: wiresprite
     static_configs:
-      - targets: ["snmpmon-host:8080"]
+      - targets: ["wiresprite-host:8080"]
 ```
 
-Then build Grafana panels/alerts against `snmpmon_up`, `snmpmon_if_oper_status`,
-`rate(snmpmon_if_in_octets_total[5m])`, etc. — see `src/http/routes_metrics.cpp` for the
+Then build Grafana panels/alerts against `wiresprite_up`, `wiresprite_if_oper_status`,
+`rate(wiresprite_if_in_octets_total[5m])`, etc. — see `src/http/routes_metrics.cpp` for the
 full metric list.
+
+## Dashboard design
+
+The built-in dashboard is intentionally not a Grafana replacement — no charting library,
+no client-side dependency, just hand-rolled inline SVG (`renderSparkline` in
+`src/http/web_assets.cpp`'s embedded `app.js`) driven by the `history` array `/api/status`
+already returns per interface. Colors and mark specs (2px rounded lines, ~10%-opacity area
+fill, icon+label status pills, hover crosshair/tooltip) come from a validated reference
+palette rather than being picked by eye; see that file's CSS custom properties for the
+exact tokens, light and dark.
 
 ## Testing
 
 ```sh
-cmake --preset <preset> -DSNMPMON_BUILD_TESTS=ON
+cmake --preset <preset> -DWIRESPRITE_BUILD_TESTS=ON
 cmake --build --preset <preset>
 ctest --test-dir build/<preset> -C Release --output-on-failure
 ```

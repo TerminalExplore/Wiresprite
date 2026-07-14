@@ -1,4 +1,4 @@
 build/
 CMakeUserPresets.json
 *.ini
-!config/snmpmon.ini.example
+!config/wiresprite.ini.example

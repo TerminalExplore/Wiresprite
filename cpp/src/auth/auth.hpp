@@ -5,7 +5,7 @@
 #include <string>
 #include <unordered_map>
 
-namespace snmpmon {
+namespace wiresprite {
 
 // Hashes `input` with SHA-256 and returns the lowercase hex digest —
 // the format AuthConfig::passwordHash expects (e.g. from
@@ -51,4 +51,4 @@ private:
     std::unordered_map<std::string, std::chrono::steady_clock::time_point> sessions_; // token -> expiry
 };
 
-} // namespace snmpmon
+} // namespace wiresprite

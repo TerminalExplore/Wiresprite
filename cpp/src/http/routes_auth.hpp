@@ -6,7 +6,7 @@
 #include "auth/auth.hpp"
 #include "httplib.h"
 
-namespace snmpmon {
+namespace wiresprite {
 
 // Extracts the "session" cookie's value from a request's Cookie
 // header, if present. Pure/testable without a running server.
@@ -19,4 +19,4 @@ bool isAuthorized(const SessionAuth& auth, const httplib::Request& req);
 // Registers GET/POST /login and POST /logout on `svr`.
 void registerAuthRoutes(httplib::Server& svr, SessionAuth& auth);
 
-} // namespace snmpmon
+} // namespace wiresprite

@@ -8,6 +8,7 @@
 #include "config/config.hpp"
 #include "http/server.hpp"
 #include "poll/device_state.hpp"
+#include "poll/history_store.hpp"
 #include "poll/poller.hpp"
 
 namespace {
@@ -22,20 +23,20 @@ void handleShutdownSignal(int) {
 
 } // namespace
 
-// Phase 5: adds the HTTP dashboard on top of Phase 4's background
-// poller. Loads the INI config, starts the Poller and HttpServer (both
-// own their own background thread), and runs until Ctrl+C/SIGTERM.
-// The dashboard reads DeviceStateStore on demand via /api/status;
-// /metrics (Phase 6) and auth (Phase 7) build on this same server.
+// Loads the INI config, starts the Poller and HttpServer (both own
+// their own background thread), and runs until Ctrl+C/SIGTERM. The
+// dashboard reads DeviceStateStore/HistoryStore on demand via
+// /api/status; /metrics and the login flow are served off the same
+// HttpServer.
 int main(int argc, char** argv) {
-    std::string configPath = argc > 1 ? argv[1] : "snmpmon.ini";
+    std::string configPath = argc > 1 ? argv[1] : "wiresprite.ini";
 
-    snmpmon::AppConfig config;
+    wiresprite::AppConfig config;
     try {
-        config = snmpmon::loadConfig(configPath);
-    } catch (const snmpmon::ConfigError& e) {
+        config = wiresprite::loadConfig(configPath);
+    } catch (const wiresprite::ConfigError& e) {
         std::cerr << "Failed to load config \"" << configPath << "\": " << e.what() << "\n";
-        std::cerr << "See config/snmpmon.ini.example for the expected format.\n";
+        std::cerr << "See config/wiresprite.ini.example for the expected format.\n";
         return 2;
     }
 
@@ -47,9 +48,10 @@ int main(int argc, char** argv) {
     std::signal(SIGINT, handleShutdownSignal);
     std::signal(SIGTERM, handleShutdownSignal);
 
-    snmpmon::DeviceStateStore store;
-    snmpmon::Poller poller(config.devices, config.polling, store);
-    snmpmon::HttpServer httpServer(config.http, config.auth, config.devices, store);
+    wiresprite::DeviceStateStore store;
+    wiresprite::HistoryStore history;
+    wiresprite::Poller poller(config.devices, config.polling, store, history);
+    wiresprite::HttpServer httpServer(config.http, config.auth, config.devices, store, history);
 
     poller.start();
     try {
@@ -60,18 +62,18 @@ int main(int argc, char** argv) {
         return 3;
     }
 
-    std::cout << "snmpmon: polling " << config.devices.size() << " device(s) every "
+    std::cout << "wiresprite: polling " << config.devices.size() << " device(s) every "
               << config.polling.intervalSeconds << "s, dashboard on http://" << config.http.listenAddress << ":"
               << httpServer.boundPort() << " (Ctrl+C to stop)\n";
     if (!httpServer.authEnabled()) {
-        std::cout << "snmpmon: [auth] password_hash is not set in [auth] — dashboard login is disabled.\n";
+        std::cout << "wiresprite: [auth] password_hash is not set in [auth] — dashboard login is disabled.\n";
     }
 
     while (!gShutdownRequested.load()) {
         std::this_thread::sleep_for(std::chrono::milliseconds(200));
     }
 
-    std::cout << "snmpmon: shutting down...\n";
+    std::cout << "wiresprite: shutting down...\n";
     httpServer.stop();
     poller.stop();
     return 0;

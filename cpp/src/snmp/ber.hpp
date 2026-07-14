@@ -12,7 +12,7 @@
 // needs. This layer knows nothing about SNMP PDUs or sockets — it only
 // turns typed values into bytes and back, so it can be unit-tested in
 // isolation against known-good vectors.
-namespace snmpmon::ber {
+namespace wiresprite::ber {
 
 // Tag octets as used on the wire. The APPLICATION-class types
 // (Counter32/Gauge32/TimeTicks/Counter64) share INTEGER's minimal
@@ -95,4 +95,4 @@ std::string encode(const Value& value);
 // Reads one typed value starting at buf[pos] and advances pos past it.
 Value decode(const std::string& buf, size_t& pos);
 
-} // namespace snmpmon::ber
+} // namespace wiresprite::ber

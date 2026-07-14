@@ -2,7 +2,7 @@
 
 #include <stdexcept>
 
-namespace snmpmon {
+namespace wiresprite {
 
 Oid Oid::parse(const std::string& dotted) {
     if (dotted.empty()) {
@@ -70,4 +70,4 @@ Oid Oid::withSuffix(uint32_t component) const {
     return withSuffix(std::vector<uint32_t>{component});
 }
 
-} // namespace snmpmon
+} // namespace wiresprite

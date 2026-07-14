@@ -2,11 +2,27 @@
 
 #include "http/json_writer.hpp"
 
-namespace snmpmon {
+namespace wiresprite {
 
 namespace {
 
-void appendInterfaceJson(std::string& out, const IfEntry& iface) {
+void appendHistoryJson(std::string& out, const std::vector<HistoryPoint>& points) {
+    out += "[";
+    bool first = true;
+    for (const auto& point : points) {
+        if (!first) {
+            out += ",";
+        }
+        first = false;
+        out += "{\"t\":" + std::to_string(point.unixTimeSec);
+        out += ",\"inBps\":" + std::to_string(point.inBitsPerSec);
+        out += ",\"outBps\":" + std::to_string(point.outBitsPerSec);
+        out += "}";
+    }
+    out += "]";
+}
+
+void appendInterfaceJson(std::string& out, const IfEntry& iface, const std::vector<HistoryPoint>& history) {
     out += "{\"ifIndex\":" + std::to_string(iface.ifIndex);
     out += ",\"ifDescr\":";
     json::appendEscapedString(out, iface.ifDescr);
@@ -20,10 +36,13 @@ void appendInterfaceJson(std::string& out, const IfEntry& iface) {
     out += ",\"ifOutErrors\":" + std::to_string(iface.ifOutErrors);
     out += ",\"ifInDiscards\":" + std::to_string(iface.ifInDiscards);
     out += ",\"ifOutDiscards\":" + std::to_string(iface.ifOutDiscards);
+    out += ",\"history\":";
+    appendHistoryJson(out, history);
     out += "}";
 }
 
-void appendDeviceJson(std::string& out, const DeviceConfig& device, const std::optional<DevicePollResult>& result) {
+void appendDeviceJson(std::string& out, const DeviceConfig& device, const std::optional<DevicePollResult>& result,
+                       const HistoryStore& history) {
     out += "{\"id\":";
     json::appendEscapedString(out, device.id);
     out += ",\"displayName\":";
@@ -48,7 +67,7 @@ void appendDeviceJson(std::string& out, const DeviceConfig& device, const std::o
                 out += ",";
             }
             first = false;
-            appendInterfaceJson(out, iface);
+            appendInterfaceJson(out, iface, history.get(device.id, iface.ifIndex));
         }
     }
     out += "]}";
@@ -56,7 +75,8 @@ void appendDeviceJson(std::string& out, const DeviceConfig& device, const std::o
 
 } // namespace
 
-std::string buildStatusJson(const std::vector<DeviceConfig>& devices, const DeviceStateStore& store) {
+std::string buildStatusJson(const std::vector<DeviceConfig>& devices, const DeviceStateStore& store,
+                             const HistoryStore& history) {
     std::string out = "{\"devices\":[";
     bool first = true;
     for (const auto& device : devices) {
@@ -64,10 +84,10 @@ std::string buildStatusJson(const std::vector<DeviceConfig>& devices, const Devi
             out += ",";
         }
         first = false;
-        appendDeviceJson(out, device, store.get(device.id));
+        appendDeviceJson(out, device, store.get(device.id), history);
     }
     out += "]}";
     return out;
 }
 
-} // namespace snmpmon
+} // namespace wiresprite

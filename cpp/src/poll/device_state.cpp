@@ -2,7 +2,7 @@
 
 #include <mutex>
 
-namespace snmpmon {
+namespace wiresprite {
 
 void DeviceStateStore::update(const std::string& deviceId, DevicePollResult result) {
     std::unique_lock lock(mutex_);
@@ -23,4 +23,4 @@ std::unordered_map<std::string, DevicePollResult> DeviceStateStore::snapshot() c
     return state_;
 }
 
-} // namespace snmpmon
+} // namespace wiresprite

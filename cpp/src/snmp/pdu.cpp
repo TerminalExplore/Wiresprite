@@ -1,6 +1,6 @@
 #include "snmp/pdu.hpp"
 
-namespace snmpmon {
+namespace wiresprite {
 
 std::string SnmpMessage::encode() const {
     std::string pduContents;
@@ -66,4 +66,4 @@ SnmpMessage SnmpMessage::decode(const std::string& buf) {
     return msg;
 }
 
-} // namespace snmpmon
+} // namespace wiresprite

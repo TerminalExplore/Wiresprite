@@ -2,7 +2,7 @@
 
 #include <cstdio>
 
-namespace snmpmon::json {
+namespace wiresprite::json {
 
 void appendEscapedString(std::string& out, const std::string& value) {
     out.push_back('"');
@@ -42,4 +42,4 @@ void appendEscapedString(std::string& out, const std::string& value) {
     out.push_back('"');
 }
 
-} // namespace snmpmon::json
+} // namespace wiresprite::json

@@ -20,8 +20,8 @@ git clone https://github.com/TerminalExploit/SNMP-Monitor.git
 cd SNMP-Monitor/cpp
 cmake --preset windows-msvc-release   # or linux-gcc-release
 cmake --build --preset windows-msvc-release
-cp config/snmpmon.ini.example snmpmon.ini   # edit with your device(s)
-./build/windows-msvc-release/Release/snmpmon.exe snmpmon.ini
+cp config/wiresprite.ini.example wiresprite.ini   # edit with your device(s)
+./build/windows-msvc-release/Release/wiresprite.exe wiresprite.ini
 ```
 
 Then open `http://localhost:8080` in a browser.
@@ -32,7 +32,7 @@ This project is not limited to the HP ProCurve 2512. It works with any network d
 that supports SNMP — switches, routers, and servers from any manufacturer (Cisco,
 MikroTik, Netgear, D-Link, and so on) — since it walks the standard IF-MIB rather than
 vendor-specific OIDs. You'll just need to enable SNMP on the target device and configure
-its community string (e.g. `public`) to match your `snmpmon.ini`.
+its community string (e.g. `public`) to match your `wiresprite.ini`.
 
 ## History
 

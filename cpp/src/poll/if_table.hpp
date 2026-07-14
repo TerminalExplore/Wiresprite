@@ -11,7 +11,7 @@
 // every SNMP-speaking switch/router implements the same way regardless
 // of vendor — this is what makes multi-vendor support "just work"
 // without per-device OID profiles.
-namespace snmpmon {
+namespace wiresprite {
 
 struct IfEntry {
     uint32_t ifIndex = 0;
@@ -34,6 +34,9 @@ struct DevicePollResult {
     uint32_t sysUpTimeTicks = 0;
     std::vector<IfEntry> interfaces; // ascending ifIndex order
     uint32_t scrapeDurationMs = 0;   // how long pollIfTable took, success or failure
+    int64_t polledAtUnixSec = 0;     // wall-clock time this result was captured; lets
+                                      // HistoryStore compute a rate between two polls
+                                      // without needing its own separate clock
 };
 
 // Pure bucketing logic: groups ifTable varbinds (as returned by a WALK
@@ -50,4 +53,4 @@ std::vector<IfEntry> bucketIfTableVarBinds(const std::vector<VarBind>& varbinds)
 // polling cycle covering several (see Phase 4's poller).
 DevicePollResult pollIfTable(SnmpClient& client);
 
-} // namespace snmpmon
+} // namespace wiresprite

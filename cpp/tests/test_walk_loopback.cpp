@@ -11,8 +11,8 @@
 
 #include <thread>
 
-using namespace snmpmon;
-using namespace snmpmon::test;
+using namespace wiresprite;
+using namespace wiresprite::test;
 
 namespace {
 

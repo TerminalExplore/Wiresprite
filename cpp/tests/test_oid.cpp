@@ -3,7 +3,7 @@
 
 #include <stdexcept>
 
-using snmpmon::Oid;
+using wiresprite::Oid;
 
 TEST_CASE("Oid::parse and toString round-trip") {
     Oid oid = Oid::parse("1.3.6.1.2.1.2.2.1.10.1");

@@ -1,7 +1,7 @@
 #include "auth/auth.hpp"
 #include "doctest.h"
 
-using namespace snmpmon;
+using namespace wiresprite;
 
 TEST_CASE("sha256Hex matches known test vectors") {
     // Cross-checked against Python's hashlib (an independent SHA-256
