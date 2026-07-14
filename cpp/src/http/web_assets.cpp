@@ -274,6 +274,15 @@ main {
   font-variant-numeric: tabular-nums;
 }
 
+.device-descr {
+  color: var(--ink-muted);
+  font-size: 0.78rem;
+  margin: 0 0 0.5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .device .meta {
   color: var(--ink-secondary);
   font-size: 0.85rem;
@@ -756,6 +765,7 @@ function createSparkline(opts) {
     gridline.setAttribute("y2", String(y));
     gridline.setAttribute("stroke", "var(--gridline)");
     gridline.setAttribute("stroke-width", "1");
+    gridline.setAttribute("vector-effect", "non-scaling-stroke");
     svg.appendChild(gridline);
   }
 
@@ -765,12 +775,21 @@ function createSparkline(opts) {
   area.setAttribute("stroke", "none");
   svg.appendChild(area);
 
+  // preserveAspectRatio="none" below stretches the viewBox's 140x{height}
+  // coordinate space non-uniformly to fill whatever width the container
+  // ends up being (a narrow Ports-page card vs. a full-width Overview
+  // card, in particular) — without vector-effect="non-scaling-stroke",
+  // that horizontal stretch inflates stroke widths and turns the round
+  // hover dot into a fat ellipse. Every stroked mark below opts out of
+  // that scaling so line/marker thickness stays constant in real pixels
+  // regardless of how wide the chart is rendered.
   const line = document.createElementNS(svgNS, "path");
   line.setAttribute("fill", "none");
   line.setAttribute("stroke", opts.color);
   line.setAttribute("stroke-width", "2");
   line.setAttribute("stroke-linecap", "round");
   line.setAttribute("stroke-linejoin", "round");
+  line.setAttribute("vector-effect", "non-scaling-stroke");
   svg.appendChild(line);
 
   const crosshair = document.createElementNS(svgNS, "line");
@@ -778,12 +797,20 @@ function createSparkline(opts) {
   crosshair.setAttribute("y2", String(height));
   crosshair.setAttribute("stroke", "var(--gridline)");
   crosshair.setAttribute("stroke-width", "1");
+  crosshair.setAttribute("vector-effect", "non-scaling-stroke");
   crosshair.setAttribute("visibility", "hidden");
   svg.appendChild(crosshair);
 
+  // A near-zero-radius circle stroked with a constant (non-scaling)
+  // width renders as a crisp, genuinely round dot even under the
+  // non-uniform scale above — a filled circle with a plain `r` would
+  // get stretched into an ellipse the same way the line's stroke would.
   const dot = document.createElementNS(svgNS, "circle");
-  dot.setAttribute("r", "3");
-  dot.setAttribute("fill", opts.color);
+  dot.setAttribute("r", "0.01");
+  dot.setAttribute("fill", "none");
+  dot.setAttribute("stroke", opts.color);
+  dot.setAttribute("stroke-width", "6");
+  dot.setAttribute("vector-effect", "non-scaling-stroke");
   dot.setAttribute("visibility", "hidden");
   svg.appendChild(dot);
 
@@ -1025,6 +1052,11 @@ function createDeviceSection() {
   header.appendChild(host);
   el.appendChild(header);
 
+  const descr = document.createElement("div");
+  descr.className = "device-descr";
+  descr.style.display = "none";
+  el.appendChild(descr);
+
   const err = document.createElement("p");
   err.className = "error";
   err.style.display = "none";
@@ -1049,13 +1081,20 @@ function createDeviceSection() {
   downList.className = "down-ports";
   el.appendChild(downList);
 
-  return { el, title, host, err, meta, noUpNote, grid, downList, ifaceCards: new Map() };
+  return { el, title, host, descr, err, meta, noUpNote, grid, downList, ifaceCards: new Map() };
 }
 
 function updateDeviceSection(handles, device) {
   handles.el.className = "device" + (device.reachable ? "" : " unreachable");
   handles.title.textContent = device.displayName;
   handles.host.textContent = device.host;
+
+  if (device.sysDescr) {
+    handles.descr.textContent = device.sysDescr;
+    handles.descr.style.display = "block";
+  } else {
+    handles.descr.style.display = "none";
+  }
 
   if (!device.reachable) {
     handles.err.textContent = device.error || "unreachable";
