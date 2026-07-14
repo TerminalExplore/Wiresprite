@@ -668,8 +668,9 @@ main {
 
 .login {
   display: flex;
+  align-items: center;
   justify-content: center;
-  padding-top: 4rem;
+  min-height: 100vh;
 }
 
 .login-card {
