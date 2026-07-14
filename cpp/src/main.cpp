@@ -10,6 +10,7 @@
 #include "poll/device_state.hpp"
 #include "poll/history_store.hpp"
 #include "poll/poller.hpp"
+#include "poll/sse_hub.hpp"
 
 namespace {
 
@@ -25,8 +26,10 @@ void handleShutdownSignal(int) {
 
 // Loads the INI config, starts the Poller and HttpServer (both own
 // their own background thread), and runs until Ctrl+C/SIGTERM. The
-// dashboard reads DeviceStateStore/HistoryStore on demand via
-// /api/status; /metrics and the login flow are served off the same
+// dashboard is pushed fresh DeviceStateStore/HistoryStore snapshots
+// over /api/events (SSE) each time SseHub is notified at the end of a
+// poll cycle, with /api/status available for one-off/non-browser
+// callers; /metrics and the login flow are served off the same
 // HttpServer.
 int main(int argc, char** argv) {
     std::string configPath = argc > 1 ? argv[1] : "wiresprite.ini";
@@ -50,8 +53,9 @@ int main(int argc, char** argv) {
 
     wiresprite::DeviceStateStore store;
     wiresprite::HistoryStore history(static_cast<size_t>(config.polling.historyPoints));
-    wiresprite::Poller poller(config.devices, config.polling, store, history);
-    wiresprite::HttpServer httpServer(config.http, config.auth, config.devices, store, history);
+    wiresprite::SseHub sseHub;
+    wiresprite::Poller poller(config.devices, config.polling, store, history, sseHub);
+    wiresprite::HttpServer httpServer(config.http, config.auth, config.devices, store, history, sseHub);
 
     poller.start();
     try {

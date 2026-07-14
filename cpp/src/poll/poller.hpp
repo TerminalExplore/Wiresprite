@@ -9,6 +9,7 @@
 #include "config/config.hpp"
 #include "poll/device_state.hpp"
 #include "poll/history_store.hpp"
+#include "poll/sse_hub.hpp"
 
 namespace wiresprite {
 
@@ -20,11 +21,12 @@ namespace wiresprite {
 // device delays only its own batch, not the whole cycle. Also feeds
 // HistoryStore a rate sample per interface each cycle, diffing this
 // poll's counters against the previous one still sitting in
-// DeviceStateStore.
+// DeviceStateStore, and notifies SseHub once per cycle so /api/events
+// can push the new snapshot to connected dashboards.
 class Poller {
 public:
-    Poller(std::vector<DeviceConfig> devices, PollingConfig polling, DeviceStateStore& store,
-           HistoryStore& history);
+    Poller(std::vector<DeviceConfig> devices, PollingConfig polling, DeviceStateStore& store, HistoryStore& history,
+           SseHub& sseHub);
     ~Poller();
 
     Poller(const Poller&) = delete;
@@ -49,6 +51,7 @@ private:
     PollingConfig polling_;
     DeviceStateStore& store_;
     HistoryStore& history_;
+    SseHub& sseHub_;
 
     std::thread thread_;
     std::atomic<bool> stopRequested_{false};

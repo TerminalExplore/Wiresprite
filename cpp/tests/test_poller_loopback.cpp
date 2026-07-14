@@ -8,6 +8,7 @@
 #include "poll/device_state.hpp"
 #include "poll/history_store.hpp"
 #include "poll/poller.hpp"
+#include "poll/sse_hub.hpp"
 #include "snmp/udp_socket.hpp"
 
 #include <chrono>
@@ -63,7 +64,8 @@ TEST_CASE("Poller polls devices concurrently, bounded by the slowest one") {
 
     DeviceStateStore store;
     HistoryStore history;
-    Poller poller(devices, polling, store, history);
+    SseHub sseHub;
+    Poller poller(devices, polling, store, history, sseHub);
 
     auto start = std::chrono::steady_clock::now();
     poller.start();
@@ -107,7 +109,8 @@ TEST_CASE("Poller re-polls on the configured interval, not just once") {
 
     DeviceStateStore store;
     HistoryStore history;
-    Poller poller(devices, polling, store, history);
+    SseHub sseHub;
+    Poller poller(devices, polling, store, history, sseHub);
     poller.start();
 
     std::this_thread::sleep_for(std::chrono::milliseconds(2600));
@@ -119,6 +122,10 @@ TEST_CASE("Poller re-polls on the configured interval, not just once") {
     // (t=0, t=1s, t=2s), so >=4 requests proves at least a second cycle
     // ran; a one-shot poller would top out at 2.
     CHECK(agent.requestsServed() >= 4);
+
+    // SseHub should have been notified once per completed cycle, same
+    // count as the requests-served assertion implies (>=2 cycles).
+    CHECK(sseHub.currentGeneration() >= 2);
 }
 
 TEST_CASE("Poller feeds HistoryStore a rate sample once it has two polls to diff") {
@@ -140,7 +147,8 @@ TEST_CASE("Poller feeds HistoryStore a rate sample once it has two polls to diff
 
     DeviceStateStore store;
     HistoryStore history;
-    Poller poller(devices, polling, store, history);
+    SseHub sseHub;
+    Poller poller(devices, polling, store, history, sseHub);
     poller.start();
 
     // Needs at least two completed polls of the same interface before
@@ -170,7 +178,8 @@ TEST_CASE("Poller feeds HistoryStore a rate sample once it has two polls to diff
 TEST_CASE("Poller::stop is safe to call without start, and idempotently") {
     DeviceStateStore store;
     HistoryStore history;
-    Poller poller({}, PollingConfig{}, store, history);
+    SseHub sseHub;
+    Poller poller({}, PollingConfig{}, store, history, sseHub);
     poller.stop();
     poller.stop();
 }

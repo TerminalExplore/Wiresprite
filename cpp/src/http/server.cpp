@@ -1,5 +1,7 @@
 #include "http/server.hpp"
 
+#include <chrono>
+#include <cstdint>
 #include <stdexcept>
 
 #include "http/routes_auth.hpp"
@@ -10,27 +12,29 @@
 namespace wiresprite {
 
 HttpServer::HttpServer(HttpConfig config, AuthConfig authConfig, std::vector<DeviceConfig> devices,
-                        DeviceStateStore& store, HistoryStore& history)
+                        DeviceStateStore& store, HistoryStore& history, SseHub& sseHub)
     : config_(std::move(config)),
       devices_(std::move(devices)),
       store_(store),
       history_(history),
+      sseHub_(sseHub),
       auth_(authConfig.username, authConfig.passwordHash, authConfig.sessionTtlMinutes) {
-    // / and /api/status carry SNMP data, so they're the two paths this
-    // guards. /style.css and /app.js are just presentation code (no
-    // data), and /metrics stays open by Prometheus exporter convention
-    // (a scraper doesn't do cookie/session auth) — both are listed
-    // explicitly here rather than defaulting protected paths to "not
-    // /login/static/metrics", so adding a route later doesn't silently
-    // become protected or unprotected by accident.
+    // /, /api/status, and /api/events all carry SNMP data, so they're
+    // the paths this guards. /style.css and /app.js are just
+    // presentation code (no data), and /metrics stays open by
+    // Prometheus exporter convention (a scraper doesn't do
+    // cookie/session auth) — both are listed explicitly here rather
+    // than defaulting protected paths to "not /login/static/metrics",
+    // so adding a route later doesn't silently become protected or
+    // unprotected by accident.
     svr_.set_pre_routing_handler([this](const httplib::Request& req, httplib::Response& res) {
-        bool needsAuth = req.path == "/" || req.path == "/api/status";
+        bool needsAuth = req.path == "/" || req.path == "/api/status" || req.path == "/api/events";
         if (needsAuth && !isAuthorized(auth_, req)) {
-            if (req.path == "/api/status") {
+            if (req.path == "/") {
+                res.set_redirect("/login");
+            } else {
                 res.status = 401;
                 res.set_content("{\"error\":\"unauthorized\"}", "application/json");
-            } else {
-                res.set_redirect("/login");
             }
             return httplib::Server::HandlerResponse::Handled;
         }
@@ -50,6 +54,38 @@ HttpServer::HttpServer(HttpConfig config, AuthConfig authConfig, std::vector<Dev
     });
     svr_.Get("/api/status", [this](const httplib::Request&, httplib::Response& res) {
         res.set_content(buildStatusJson(devices_, store_, history_), "application/json");
+    });
+    // Server-Sent Events: pushes the same JSON /api/status returns
+    // every time a poll cycle completes, instead of making the
+    // dashboard poll on a timer. httplib calls this provider
+    // repeatedly on the connection's own worker thread until it
+    // returns false; `first`/`lastSeen` are captured by value in this
+    // mutable lambda, so they persist across those repeated calls for
+    // the lifetime of one connection.
+    svr_.Get("/api/events", [this](const httplib::Request&, httplib::Response& res) {
+        res.set_chunked_content_provider(
+            "text/event-stream", [this, first = true, lastSeen = uint64_t{0}](
+                                      size_t, httplib::DataSink& sink) mutable {
+                std::string payload;
+                if (first) {
+                    first = false;
+                    lastSeen = sseHub_.currentGeneration();
+                    payload = buildStatusJson(devices_, store_, history_);
+                } else {
+                    auto generation = sseHub_.waitForChange(lastSeen, std::chrono::seconds(20));
+                    if (!generation.has_value()) {
+                        if (sseHub_.isShuttingDown()) {
+                            return false; // ends the stream
+                        }
+                        static const std::string keepalive = ": keepalive\n\n";
+                        return sink.write(keepalive.data(), keepalive.size());
+                    }
+                    lastSeen = *generation;
+                    payload = buildStatusJson(devices_, store_, history_);
+                }
+                std::string frame = "data: " + payload + "\n\n";
+                return sink.write(frame.data(), frame.size());
+            });
     });
     // Deliberately unauthenticated, matching standard Prometheus
     // exporter convention.
@@ -80,6 +116,10 @@ void HttpServer::start() {
 }
 
 void HttpServer::stop() {
+    // Unblocks any /api/events connections immediately instead of
+    // leaving them to wait out their keep-alive timeout while the
+    // server is shutting down.
+    sseHub_.shutdown();
     svr_.stop();
     if (thread_.joinable()) {
         thread_.join();
