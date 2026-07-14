@@ -97,6 +97,14 @@ TEST_CASE("HttpServer serves the dashboard, static assets, and /api/status") {
         CHECK(res->body.find("/api/events") != std::string::npos);
     }
 
+    SUBCASE("GET /favicon.svg returns the spiderweb mark") {
+        auto res = client.Get("/favicon.svg");
+        REQUIRE(res != nullptr);
+        CHECK(res->status == 200);
+        CHECK(res->get_header_value("Content-Type").find("image/svg+xml") != std::string::npos);
+        CHECK(res->body.find("<svg") != std::string::npos);
+    }
+
     SUBCASE("GET /api/status returns JSON reflecting the live DeviceStateStore") {
         auto res = client.Get("/api/status");
         REQUIRE(res != nullptr);
@@ -198,6 +206,7 @@ TEST_CASE("HttpServer enforces session auth when configured") {
     SUBCASE("static assets and /metrics remain accessible without auth") {
         CHECK(client.Get("/style.css")->status == 200);
         CHECK(client.Get("/app.js")->status == 200);
+        CHECK(client.Get("/favicon.svg")->status == 200);
         CHECK(client.Get("/metrics")->status == 200);
     }
 

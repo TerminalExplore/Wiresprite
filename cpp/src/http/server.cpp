@@ -52,6 +52,9 @@ HttpServer::HttpServer(HttpConfig config, AuthConfig authConfig, std::vector<Dev
     svr_.Get("/app.js", [](const httplib::Request&, httplib::Response& res) {
         res.set_content(web::kAppJs, "application/javascript; charset=utf-8");
     });
+    svr_.Get("/favicon.svg", [](const httplib::Request&, httplib::Response& res) {
+        res.set_content(web::kFaviconSvg, "image/svg+xml");
+    });
     svr_.Get("/api/status", [this](const httplib::Request&, httplib::Response& res) {
         res.set_content(buildStatusJson(devices_, store_, history_), "application/json");
     });
