@@ -20,6 +20,7 @@ endif()
 add_library(snmpmon_core STATIC
   src/snmp/oid.cpp
   src/snmp/ber.cpp
+  src/snmp/pdu.cpp
 )
 
 target_include_directories(snmpmon_core PUBLIC
