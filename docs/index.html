@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wiresprite — live demo</title>
+<meta name="description" content="Live demo of Wiresprite, a lightweight SNMP switch monitor dashboard. Simulated data.">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<script>(function(){var t=localStorage.getItem("wiresprite-theme");if(t==="light"||t==="dark"){document.documentElement.setAttribute("data-theme",t);}})();</script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1>
+    <svg class="logo-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" aria-hidden="true">
+      <line x1="12" y1="12" x2="12" y2="2"/>
+      <line x1="12" y1="12" x2="20.66" y2="7"/>
+      <line x1="12" y1="12" x2="20.66" y2="17"/>
+      <line x1="12" y1="12" x2="12" y2="22"/>
+      <line x1="12" y1="12" x2="3.34" y2="17"/>
+      <line x1="12" y1="12" x2="3.34" y2="7"/>
+      <polygon points="12,9 14.6,10.5 14.6,13.5 12,15 9.4,13.5 9.4,10.5"/>
+      <polygon points="12,5.5 17.63,8.75 17.63,15.25 12,18.5 6.37,15.25 6.37,8.75"/>
+    </svg>
+    Wiresprite
+  </h1>
+  <span id="last-updated">loading&hellip;</span>
+  <div class="header-actions">
+    <button type="button" id="theme-toggle" class="header-button" aria-label="Toggle light/dark theme"></button>
+    <button type="button" id="kiosk-toggle" class="header-button" aria-label="Kiosk / wallboard mode">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6"
+           stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 9V4h5"/><path d="M20 9V4h-5"/><path d="M4 15v5h5"/><path d="M20 15v5h-5"/>
+      </svg>
+    </button>
+    <button type="button" id="export-csv" class="header-button">Export CSV</button>
+  </div>
+</header>
+<div class="demo-banner">
+  &#9889; <strong>Live demo — simulated data, not a real network.</strong>
+  This is a static preview of Wiresprite's dashboard, running entirely in your browser with fake traffic.
+  <a href="https://github.com/TerminalExplore/Wiresprite" target="_blank" rel="noopener">View the project on GitHub &rarr;</a>
+</div>
+<nav class="navbar">
+  <button type="button" class="nav-btn active" data-page="ports">Ports</button>
+  <button type="button" class="nav-btn" data-page="overview">Overview</button>
+</nav>
+<section id="page-ports" class="page active">
+  <div id="summary" class="summary-grid"></div>
+  <div id="alert-banner"></div>
+  <div class="filter-bar">
+    <span class="filter-label">Show:</span>
+    <div class="segmented" id="port-filter">
+      <button type="button" class="segmented-btn active" data-filter="all">All</button>
+      <button type="button" class="segmented-btn" data-filter="up">Up</button>
+      <button type="button" class="segmented-btn" data-filter="down">Down</button>
+    </div>
+  </div>
+  <main id="devices"></main>
+</section>
+<section id="page-overview" class="page">
+  <div class="overview-grid">
+    <div class="overview-card">
+      <h3>Total traffic</h3>
+      <div class="iface-charts" id="overview-charts"></div>
+    </div>
+    <div class="overview-card">
+      <h3>Errors &amp; discards</h3>
+      <div id="overview-errors-wrap"></div>
+    </div>
+  </div>
+</section>
+<script src="app.js"></script>
+</body>
+</html>
