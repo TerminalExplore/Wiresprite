@@ -49,7 +49,7 @@ int main(int argc, char** argv) {
     std::signal(SIGTERM, handleShutdownSignal);
 
     wiresprite::DeviceStateStore store;
-    wiresprite::HistoryStore history;
+    wiresprite::HistoryStore history(static_cast<size_t>(config.polling.historyPoints));
     wiresprite::Poller poller(config.devices, config.polling, store, history);
     wiresprite::HttpServer httpServer(config.http, config.auth, config.devices, store, history);
 

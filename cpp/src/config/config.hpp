@@ -27,6 +27,7 @@ struct PollingConfig {
     int timeoutMs = 1500;
     int retries = 2;
     int maxConcurrentDevices = 8;
+    int historyPoints = 240; // ring-buffer size per interface; 240 @ default 30s interval = ~2 hours
 };
 
 struct DeviceConfig {
