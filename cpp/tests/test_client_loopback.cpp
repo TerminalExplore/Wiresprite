@@ -13,7 +13,7 @@
 
 #include <thread>
 
-using namespace snmpmon;
+using namespace wiresprite;
 
 TEST_CASE("SnmpClient::get round-trips through a real UDP loopback fake agent") {
     // The exact OID app/snmp_monitor.py's Python prototype queried

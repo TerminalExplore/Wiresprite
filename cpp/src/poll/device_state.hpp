@@ -7,7 +7,7 @@
 
 #include "poll/if_table.hpp"
 
-namespace snmpmon {
+namespace wiresprite {
 
 // Thread-safe store of the latest poll result per device, keyed by
 // DeviceConfig::id. The Poller's background thread writes; HTTP
@@ -28,4 +28,4 @@ private:
     std::unordered_map<std::string, DevicePollResult> state_;
 };
 
-} // namespace snmpmon
+} // namespace wiresprite

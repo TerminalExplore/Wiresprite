@@ -29,7 +29,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y ninja-build
 
       - name: Configure
-        run: cmake --preset ${{ matrix.preset }} -DSNMPMON_BUILD_TESTS=ON
+        run: cmake --preset ${{ matrix.preset }} -DWIRESPRITE_BUILD_TESTS=ON
 
       - name: Build
         run: cmake --build --preset ${{ matrix.preset }}

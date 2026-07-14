@@ -6,7 +6,7 @@
 #include "config/config.hpp"
 #include "poll/device_state.hpp"
 
-namespace snmpmon {
+namespace wiresprite {
 
 // Builds the /metrics body in Prometheus text exposition format
 // (https://prometheus.io/docs/instrumenting/exposition_formats/).
@@ -19,4 +19,4 @@ namespace snmpmon {
 // 7's auth only guards the dashboard).
 std::string buildMetricsText(const std::vector<DeviceConfig>& devices, const DeviceStateStore& store);
 
-} // namespace snmpmon
+} // namespace wiresprite

@@ -1,7 +1,7 @@
 #include "doctest.h"
 #include "poll/device_state.hpp"
 
-using namespace snmpmon;
+using namespace wiresprite;
 
 TEST_CASE("DeviceStateStore::get returns nullopt before any update") {
     DeviceStateStore store;

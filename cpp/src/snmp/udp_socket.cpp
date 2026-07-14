@@ -16,7 +16,7 @@
 #include <unistd.h>
 #endif
 
-namespace snmpmon {
+namespace wiresprite {
 
 namespace {
 
@@ -183,4 +183,4 @@ bool UdpSocket::receiveFrom(std::string& outData, std::string& fromHost, uint16_
     return true;
 }
 
-} // namespace snmpmon
+} // namespace wiresprite

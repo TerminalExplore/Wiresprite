@@ -1,7 +1,7 @@
 #include "doctest.h"
 #include "http/routes_auth.hpp"
 
-using namespace snmpmon;
+using namespace wiresprite;
 
 namespace {
 httplib::Request requestWithCookie(const std::string& cookieHeader) {

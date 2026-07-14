@@ -9,7 +9,7 @@
 
 // Hand-rolled INI config: no JSON/YAML library dependency, matching the
 // project's minimal-dependency goal for a config this small and flat.
-namespace snmpmon {
+namespace wiresprite {
 
 struct HttpConfig {
     std::string listenAddress = "0.0.0.0";
@@ -60,4 +60,4 @@ AppConfig parseConfig(const std::string& iniText);
 // opened, in addition to every parseConfig failure mode.
 AppConfig loadConfig(const std::string& path);
 
-} // namespace snmpmon
+} // namespace wiresprite
