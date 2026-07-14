@@ -2,6 +2,22 @@
 
 namespace wiresprite::web {
 
+// A minimal line-art spiderweb: 6 spokes from center to the viewBox
+// edge plus two concentric hexagonal "rings". stroke="currentColor" so
+// it inherits the surrounding text color for free in both themes.
+#define WIRESPRITE_LOGO_SVG                                                                                          \
+    "<svg class=\"logo-icon\" viewBox=\"0 0 24 24\" width=\"20\" height=\"20\" fill=\"none\" "                       \
+    "stroke=\"currentColor\" stroke-width=\"1.3\" stroke-linecap=\"round\" aria-hidden=\"true\">"                    \
+    "<line x1=\"12\" y1=\"12\" x2=\"12\" y2=\"2\"/>"                                                                 \
+    "<line x1=\"12\" y1=\"12\" x2=\"20.66\" y2=\"7\"/>"                                                              \
+    "<line x1=\"12\" y1=\"12\" x2=\"20.66\" y2=\"17\"/>"                                                             \
+    "<line x1=\"12\" y1=\"12\" x2=\"12\" y2=\"22\"/>"                                                                \
+    "<line x1=\"12\" y1=\"12\" x2=\"3.34\" y2=\"17\"/>"                                                              \
+    "<line x1=\"12\" y1=\"12\" x2=\"3.34\" y2=\"7\"/>"                                                               \
+    "<polygon points=\"12,9 14.6,10.5 14.6,13.5 12,15 9.4,13.5 9.4,10.5\"/>"                                         \
+    "<polygon points=\"12,5.5 17.63,8.75 17.63,15.25 12,18.5 6.37,15.25 6.37,8.75\"/>"                               \
+    "</svg>"
+
 const char* const kIndexHtml = R"HTML(<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -12,7 +28,7 @@ const char* const kIndexHtml = R"HTML(<!DOCTYPE html>
 </head>
 <body>
 <header>
-  <h1>&#9889; Wiresprite</h1>
+  <h1>)HTML" WIRESPRITE_LOGO_SVG R"HTML( Wiresprite</h1>
   <span id="last-updated">loading&hellip;</span>
   <div class="header-actions">
     <button type="button" id="export-csv" class="header-button">Export CSV</button>
@@ -21,8 +37,34 @@ const char* const kIndexHtml = R"HTML(<!DOCTYPE html>
     </form>
   </div>
 </header>
-<div id="alert-banner"></div>
-<main id="devices"></main>
+<nav class="navbar">
+  <button type="button" class="nav-btn active" data-page="ports">Ports</button>
+  <button type="button" class="nav-btn" data-page="overview">Overview</button>
+</nav>
+<section id="page-ports" class="page active">
+  <div id="alert-banner"></div>
+  <div class="filter-bar">
+    <span class="filter-label">Show:</span>
+    <div class="segmented" id="port-filter">
+      <button type="button" class="segmented-btn active" data-filter="all">All</button>
+      <button type="button" class="segmented-btn" data-filter="up">Up</button>
+      <button type="button" class="segmented-btn" data-filter="down">Down</button>
+    </div>
+  </div>
+  <main id="devices"></main>
+</section>
+<section id="page-overview" class="page">
+  <div class="overview-grid">
+    <div class="overview-card">
+      <h3>Total traffic</h3>
+      <div class="iface-charts" id="overview-charts"></div>
+    </div>
+    <div class="overview-card">
+      <h3>Errors &amp; discards</h3>
+      <div id="overview-errors-wrap"></div>
+    </div>
+  </div>
+</section>
 <script src="/app.js"></script>
 </body>
 </html>
@@ -98,13 +140,94 @@ header {
 
 header h1 {
   margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
   font-size: 1.3rem;
   font-weight: 600;
+}
+
+.logo-icon {
+  flex: none;
 }
 
 #last-updated {
   color: var(--ink-muted);
   font-size: 0.85rem;
+}
+
+.navbar {
+  display: flex;
+  gap: 0.4rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding-bottom: 1rem;
+}
+
+.nav-btn {
+  font: inherit;
+  padding: 0.4rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink-secondary);
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.nav-btn:hover {
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
+}
+
+.nav-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+.page {
+  display: none;
+}
+
+.page.active {
+  display: block;
+}
+
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: 1200px;
+  margin: 0 auto 0.85rem;
+  font-size: 0.82rem;
+  color: var(--ink-secondary);
+}
+
+.segmented {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.segmented-btn {
+  font: inherit;
+  padding: 0.3rem 0.7rem;
+  border: none;
+  border-left: 1px solid var(--border);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+.segmented-btn:first-child {
+  border-left: none;
+}
+
+.segmented-btn.active {
+  background: var(--accent);
+  color: white;
 }
 
 main {
@@ -124,6 +247,11 @@ main {
 
 .device.unreachable {
   border-color: var(--status-critical);
+}
+
+.device.hidden-by-filter,
+.iface-card.hidden-by-filter {
+  display: none;
 }
 
 .device-header {
@@ -250,6 +378,10 @@ main {
   cursor: crosshair;
 }
 
+.overview-card .sparkline {
+  height: 90px;
+}
+
 .sparkline-empty {
   color: var(--ink-muted);
   font-size: 0.78rem;
@@ -328,6 +460,54 @@ main {
   color: var(--status-critical);
 }
 
+.overview-grid {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.overview-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1.1rem 1.25rem;
+}
+
+.overview-card h3 {
+  margin: 0 0 0.85rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.errors-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.errors-table th,
+.errors-table td {
+  text-align: left;
+  padding: 0.4rem 0.6rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.errors-table th {
+  color: var(--ink-muted);
+  font-weight: 600;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.errors-empty {
+  color: var(--ink-muted);
+  font-size: 0.85rem;
+  margin: 0;
+}
+
 .login {
   display: flex;
   justify-content: center;
@@ -348,8 +528,11 @@ main {
 
 .login-card h1 {
   margin: 0 0 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
   font-size: 1.2rem;
-  text-align: center;
 }
 
 .login-card label {
@@ -384,9 +567,7 @@ main {
 }
 )CSS";
 
-const char* const kAppJs = R"JS(const REFRESH_MS = 5000;
-
-function statusLabel(code) {
+const char* const kAppJs = R"JS(function statusLabel(code) {
   switch (code) {
     case 1: return "Up";
     case 2: return "Down";
@@ -418,29 +599,12 @@ function formatDuration(totalSeconds) {
   return minutes + "m";
 }
 
-function renderStatusPill(operStatus) {
-  const pill = document.createElement("span");
-  let cls, icon;
-  if (operStatus === 1) {
-    cls = "pill-good";
-    icon = "●"; // filled circle
-  } else if (operStatus === 2) {
-    cls = "pill-critical";
-    icon = "▲"; // triangle
-  } else {
-    cls = "pill-warning";
-    icon = "◆"; // diamond
-  }
-  pill.className = "pill " + cls;
-  pill.textContent = icon + " " + statusLabel(operStatus);
-  return pill;
-}
-
-// A small inline SVG line chart: 2px rounded line, ~10%-opacity area
-// fill, a crosshair + tooltip on hover, and a direct end-label showing
-// the current value. Single series per call — In/Out are two separate
-// sparklines side by side rather than one chart with a legend.
-function renderSparkline(points, opts) {
+)JS" R"JS(
+// ---- Sparkline: split into create (build DOM + wire listeners once)
+// and update (recompute the path/label only) so a live SSE push never
+// tears down and re-attaches hover listeners — that churn is what
+// would otherwise cause visible flicker/jank at push cadence.
+function createSparkline(opts) {
   const width = 140;
   const height = 36;
   const pad = 2;
@@ -454,42 +618,18 @@ function renderSparkline(points, opts) {
   labelEl.textContent = opts.label;
   wrap.appendChild(labelEl);
 
-  if (points.length < 2) {
-    const empty = document.createElement("div");
-    empty.className = "sparkline-empty";
-    empty.textContent = "collecting…";
-    wrap.appendChild(empty);
-    return wrap;
-  }
-
-  const maxValue = Math.max(...points.map((p) => p.v), 1);
-  const xAt = (i) => pad + (i / (points.length - 1)) * (width - pad * 2);
-  const yAt = (v) => height - pad - (v / maxValue) * (height - pad * 2);
-
   const svg = document.createElementNS(svgNS, "svg");
   svg.setAttribute("viewBox", "0 0 " + width + " " + height);
   svg.setAttribute("class", "sparkline");
   svg.setAttribute("preserveAspectRatio", "none");
 
-  let linePath = "";
-  let areaPath = "M " + xAt(0) + " " + (height - pad) + " ";
-  points.forEach((p, i) => {
-    const x = xAt(i);
-    const y = yAt(p.v);
-    linePath += (i === 0 ? "M " : "L ") + x + " " + y + " ";
-    areaPath += "L " + x + " " + y + " ";
-  });
-  areaPath += "L " + xAt(points.length - 1) + " " + (height - pad) + " Z";
-
   const area = document.createElementNS(svgNS, "path");
-  area.setAttribute("d", areaPath);
   area.setAttribute("fill", opts.color);
   area.setAttribute("opacity", "0.1");
   area.setAttribute("stroke", "none");
   svg.appendChild(area);
 
   const line = document.createElementNS(svgNS, "path");
-  line.setAttribute("d", linePath);
   line.setAttribute("fill", "none");
   line.setAttribute("stroke", opts.color);
   line.setAttribute("stroke-width", "2");
@@ -521,6 +661,11 @@ function renderSparkline(points, opts) {
 
   wrap.appendChild(svg);
 
+  const empty = document.createElement("div");
+  empty.className = "sparkline-empty";
+  empty.textContent = "collecting…";
+  wrap.appendChild(empty);
+
   const tooltip = document.createElement("div");
   tooltip.className = "sparkline-tooltip";
   tooltip.hidden = true;
@@ -528,15 +673,19 @@ function renderSparkline(points, opts) {
 
   const endLabel = document.createElement("div");
   endLabel.className = "sparkline-value";
-  endLabel.textContent = opts.formatValue(points[points.length - 1].v);
   wrap.appendChild(endLabel);
 
+  const handles = {
+    wrap, svg, area, line, crosshair, dot, hit, tooltip, endLabel, empty,
+    opts, points: [], xAt: null, yAt: null, width, height, pad,
+  };
+
   function nearestIndex(offsetX) {
-    const px = (offsetX / svg.getBoundingClientRect().width) * width;
+    const px = (offsetX / handles.svg.getBoundingClientRect().width) * width;
     let nearest = 0;
     let best = Infinity;
-    for (let i = 0; i < points.length; i++) {
-      const d = Math.abs(xAt(i) - px);
+    for (let i = 0; i < handles.points.length; i++) {
+      const d = Math.abs(handles.xAt(i) - px);
       if (d < best) {
         best = d;
         nearest = i;
@@ -546,18 +695,19 @@ function renderSparkline(points, opts) {
   }
 
   function handleMove(evt) {
-    const rect = svg.getBoundingClientRect();
+    if (handles.points.length < 2) return;
+    const rect = handles.svg.getBoundingClientRect();
     const i = nearestIndex(evt.clientX - rect.left);
-    const x = xAt(i);
+    const x = handles.xAt(i);
     crosshair.setAttribute("x1", String(x));
     crosshair.setAttribute("x2", String(x));
     crosshair.setAttribute("visibility", "visible");
     dot.setAttribute("cx", String(x));
-    dot.setAttribute("cy", String(yAt(points[i].v)));
+    dot.setAttribute("cy", String(handles.yAt(handles.points[i].v)));
     dot.setAttribute("visibility", "visible");
 
-    const when = new Date(points[i].t * 1000);
-    tooltip.textContent = opts.formatValue(points[i].v) + " — " + when.toLocaleTimeString();
+    const when = new Date(handles.points[i].t * 1000);
+    tooltip.textContent = handles.opts.formatValue(handles.points[i].v) + " — " + when.toLocaleTimeString();
     tooltip.hidden = false;
     tooltip.style.left = (x / width) * 100 + "%";
   }
@@ -571,10 +721,43 @@ function renderSparkline(points, opts) {
   hit.addEventListener("pointermove", handleMove);
   hit.addEventListener("pointerleave", handleLeave);
 
-  return wrap;
+  updateSparkline(handles, []);
+  return handles;
 }
 
-function renderInterfaceCard(iface) {
+function updateSparkline(handles, points) {
+  handles.points = points;
+  const enough = points.length >= 2;
+  handles.svg.style.display = enough ? "block" : "none";
+  handles.empty.style.display = enough ? "none" : "flex";
+  handles.endLabel.style.display = enough ? "block" : "none";
+  if (!enough) return;
+
+  const { width, height, pad } = handles;
+  const maxValue = Math.max(...points.map((p) => p.v), 1);
+  const xAt = (i) => pad + (i / (points.length - 1)) * (width - pad * 2);
+  const yAt = (v) => height - pad - (v / maxValue) * (height - pad * 2);
+  handles.xAt = xAt;
+  handles.yAt = yAt;
+
+  let linePath = "";
+  let areaPath = "M " + xAt(0) + " " + (height - pad) + " ";
+  points.forEach((p, i) => {
+    const x = xAt(i);
+    const y = yAt(p.v);
+    linePath += (i === 0 ? "M " : "L ") + x + " " + y + " ";
+    areaPath += "L " + x + " " + y + " ";
+  });
+  areaPath += "L " + xAt(points.length - 1) + " " + (height - pad) + " Z";
+
+  handles.area.setAttribute("d", areaPath);
+  handles.line.setAttribute("d", linePath);
+  handles.endLabel.textContent = handles.opts.formatValue(points[points.length - 1].v);
+}
+
+)JS" R"JS(
+// ---- Interface card: create once per (device, ifIndex), update in place.
+function createIfaceCard() {
   const card = document.createElement("div");
   card.className = "iface-card";
 
@@ -582,75 +765,137 @@ function renderInterfaceCard(iface) {
   head.className = "iface-head";
   const name = document.createElement("span");
   name.className = "iface-name";
-  name.textContent = iface.ifAlias || iface.ifDescr || ("#" + iface.ifIndex);
   head.appendChild(name);
-  head.appendChild(renderStatusPill(iface.ifOperStatus));
+  const pill = document.createElement("span");
+  head.appendChild(pill);
   card.appendChild(head);
 
   const meta = document.createElement("div");
   meta.className = "iface-meta";
-  meta.textContent = formatRate(iface.ifSpeed) + " link · admin " + statusLabel(iface.ifAdminStatus).toLowerCase();
   card.appendChild(meta);
 
   const charts = document.createElement("div");
   charts.className = "iface-charts";
+  const inSpark = createSparkline({ color: "var(--series-in)", label: "In", formatValue: formatRate });
+  const outSpark = createSparkline({ color: "var(--series-out)", label: "Out", formatValue: formatRate });
+  charts.appendChild(inSpark.wrap);
+  charts.appendChild(outSpark.wrap);
+  card.appendChild(charts);
+
+  const warn = document.createElement("div");
+  warn.className = "iface-warn";
+  warn.style.display = "none";
+  card.appendChild(warn);
+
+  return { el: card, name, pill, meta, inSpark, outSpark, warn, ifOperStatus: null };
+}
+
+function updateIfaceCard(handles, iface) {
+  handles.name.textContent = iface.ifAlias || iface.ifDescr || ("#" + iface.ifIndex);
+
+  let cls, icon;
+  if (iface.ifOperStatus === 1) {
+    cls = "pill-good";
+    icon = "●"; // filled circle
+  } else if (iface.ifOperStatus === 2) {
+    cls = "pill-critical";
+    icon = "▲"; // triangle
+  } else {
+    cls = "pill-warning";
+    icon = "◆"; // diamond
+  }
+  handles.pill.className = "pill " + cls;
+  handles.pill.textContent = icon + " " + statusLabel(iface.ifOperStatus);
+
+  handles.meta.textContent =
+    formatRate(iface.ifSpeed) + " link · admin " + statusLabel(iface.ifAdminStatus).toLowerCase();
+
   const inPoints = iface.history.map((h) => ({ t: h.t, v: h.inBps }));
   const outPoints = iface.history.map((h) => ({ t: h.t, v: h.outBps }));
-  charts.appendChild(renderSparkline(inPoints, { color: "var(--series-in)", label: "In", formatValue: formatRate }));
-  charts.appendChild(
-    renderSparkline(outPoints, { color: "var(--series-out)", label: "Out", formatValue: formatRate })
-  );
-  card.appendChild(charts);
+  updateSparkline(handles.inSpark, inPoints);
+  updateSparkline(handles.outSpark, outPoints);
 
   const errors = iface.ifInErrors + iface.ifOutErrors;
   const discards = iface.ifInDiscards + iface.ifOutDiscards;
   if (errors > 0 || discards > 0) {
-    const warn = document.createElement("div");
-    warn.className = "iface-warn";
-    warn.textContent = errors + " errors, " + discards + " discards";
-    card.appendChild(warn);
+    handles.warn.textContent = errors + " errors, " + discards + " discards";
+    handles.warn.style.display = "block";
+  } else {
+    handles.warn.style.display = "none";
   }
 
-  return card;
+  handles.ifOperStatus = iface.ifOperStatus;
+  handles.ifAdminStatus = iface.ifAdminStatus;
 }
 
-function renderDevice(device) {
+)JS" R"JS(
+// ---- Device section: create once per device id, update in place.
+function createDeviceSection() {
   const el = document.createElement("section");
-  el.className = "device" + (device.reachable ? "" : " unreachable");
+  el.className = "device";
 
   const header = document.createElement("div");
   header.className = "device-header";
   const title = document.createElement("h2");
-  title.textContent = device.displayName;
+  header.appendChild(title);
   const host = document.createElement("span");
   host.className = "device-host";
-  host.textContent = device.host;
-  header.appendChild(title);
   header.appendChild(host);
   el.appendChild(header);
 
-  if (!device.reachable) {
-    const err = document.createElement("p");
-    err.className = "error";
-    err.textContent = device.error || "unreachable";
-    el.appendChild(err);
-    return el;
-  }
+  const err = document.createElement("p");
+  err.className = "error";
+  err.style.display = "none";
+  el.appendChild(err);
 
   const meta = document.createElement("p");
   meta.className = "meta";
-  meta.textContent =
-    "uptime " + formatDuration(device.sysUpTimeTicks / 100) + " · " + device.interfaces.length + " interfaces";
+  meta.style.display = "none";
   el.appendChild(meta);
 
   const grid = document.createElement("div");
   grid.className = "interfaces";
-  for (const iface of device.interfaces) {
-    grid.appendChild(renderInterfaceCard(iface));
-  }
   el.appendChild(grid);
 
-  return el;
+  return { el, title, host, err, meta, grid, ifaceCards: new Map() };
+}
+
+function updateDeviceSection(handles, device) {
+  handles.el.className = "device" + (device.reachable ? "" : " unreachable");
+  handles.title.textContent = device.displayName;
+  handles.host.textContent = device.host;
+
+  if (!device.reachable) {
+    handles.err.textContent = device.error || "unreachable";
+    handles.err.style.display = "block";
+    handles.meta.style.display = "none";
+    handles.grid.style.display = "none";
+    return;
+  }
+
+  handles.err.style.display = "none";
+  handles.meta.style.display = "block";
+  handles.meta.textContent =
+    "uptime " + formatDuration(device.sysUpTimeTicks / 100) + " · " + device.interfaces.length + " interfaces";
+  handles.grid.style.display = "grid";
+
+  const seen = new Set();
+  for (const iface of device.interfaces) {
+    seen.add(iface.ifIndex);
+    let cardHandles = handles.ifaceCards.get(iface.ifIndex);
+    if (!cardHandles) {
+      cardHandles = createIfaceCard();
+      handles.ifaceCards.set(iface.ifIndex, cardHandles);
+      handles.grid.appendChild(cardHandles.el);
+    }
+    updateIfaceCard(cardHandles, iface);
+  }
+  for (const [ifIndex, cardHandles] of handles.ifaceCards) {
+    if (!seen.has(ifIndex)) {
+      cardHandles.el.remove();
+      handles.ifaceCards.delete(ifIndex);
+    }
+  }
 }
 
 // Aggregates already-fetched status data into a single summary banner —
@@ -696,9 +941,115 @@ function renderAlertBanner(devices) {
   banner.textContent = icon + " " + parts.join(", ");
 }
 
-// Builds a CSV of the last fetched snapshot, client-side only — the
-// data is already in the browser from the last /api/status poll, so no
-// new server endpoint is needed.
+)JS" R"JS(
+// ---- Port status filter (All / Up / Down). Unreachable devices always
+// show (no ports to filter, and "device is down" matters regardless).
+let currentFilter = "all";
+
+function applyFilter() {
+  for (const [, deviceHandles] of deviceSections) {
+    if (deviceHandles.el.classList.contains("unreachable")) {
+      deviceHandles.el.classList.remove("hidden-by-filter");
+      continue;
+    }
+    let anyVisible = false;
+    for (const [, cardHandles] of deviceHandles.ifaceCards) {
+      const matches =
+        currentFilter === "all" ||
+        (currentFilter === "up" && cardHandles.ifOperStatus === 1) ||
+        (currentFilter === "down" && cardHandles.ifOperStatus === 2);
+      cardHandles.el.classList.toggle("hidden-by-filter", !matches);
+      if (matches) anyVisible = true;
+    }
+    deviceHandles.el.classList.toggle("hidden-by-filter", !anyVisible);
+  }
+}
+
+)JS" R"JS(
+// ---- Overview page: aggregate traffic (summed across every interface
+// of every device, bucketed by exact timestamp) and an errors/discards
+// summary table — both derived client-side from the same SSE payload
+// the Ports page uses, no backend aggregation endpoint needed.
+function computeAggregateTraffic(devices) {
+  const byTime = new Map();
+  for (const device of devices) {
+    if (!device.reachable) continue;
+    for (const iface of device.interfaces) {
+      for (const point of iface.history) {
+        let bucket = byTime.get(point.t);
+        if (!bucket) {
+          bucket = { t: point.t, inBps: 0, outBps: 0 };
+          byTime.set(point.t, bucket);
+        }
+        bucket.inBps += point.inBps;
+        bucket.outBps += point.outBps;
+      }
+    }
+  }
+  return Array.from(byTime.values()).sort((a, b) => a.t - b.t);
+}
+
+function renderErrorsTable(devices) {
+  const wrap = document.getElementById("overview-errors-wrap");
+  const rows = [];
+  for (const device of devices) {
+    if (!device.reachable) continue;
+    for (const iface of device.interfaces) {
+      const errors = iface.ifInErrors + iface.ifOutErrors;
+      const discards = iface.ifInDiscards + iface.ifOutDiscards;
+      if (errors + discards > 0) {
+        rows.push({
+          device: device.displayName,
+          port: iface.ifAlias || iface.ifDescr || ("#" + iface.ifIndex),
+          errors,
+          discards,
+          total: errors + discards,
+        });
+      }
+    }
+  }
+  rows.sort((a, b) => b.total - a.total);
+
+  wrap.innerHTML = ""; // one small table, cheap to rebuild wholesale each push
+  if (rows.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "errors-empty";
+    empty.textContent = "No errors or discards — all clean.";
+    wrap.appendChild(empty);
+    return;
+  }
+
+  const table = document.createElement("table");
+  table.className = "errors-table";
+  table.innerHTML = "<thead><tr><th>Device</th><th>Port</th><th>Errors</th><th>Discards</th></tr></thead>";
+  const tbody = document.createElement("tbody");
+  for (const row of rows) {
+    const tr = document.createElement("tr");
+    const tdDevice = document.createElement("td");
+    tdDevice.textContent = row.device;
+    const tdPort = document.createElement("td");
+    tdPort.textContent = row.port;
+    const tdErrors = document.createElement("td");
+    tdErrors.textContent = String(row.errors);
+    const tdDiscards = document.createElement("td");
+    tdDiscards.textContent = String(row.discards);
+    tr.append(tdDevice, tdPort, tdErrors, tdDiscards);
+    tbody.appendChild(tr);
+  }
+  table.appendChild(tbody);
+  wrap.appendChild(table);
+}
+
+function renderOverview(data) {
+  const buckets = computeAggregateTraffic(data.devices);
+  updateSparkline(overviewInSpark, buckets.map((b) => ({ t: b.t, v: b.inBps })));
+  updateSparkline(overviewOutSpark, buckets.map((b) => ({ t: b.t, v: b.outBps })));
+  renderErrorsTable(data.devices);
+}
+
+)JS" R"JS(
+// ---- CSV export: client-side only, built from the last SSE payload —
+// the data's already in the browser, so no new server endpoint.
 function toCsvField(value) {
   const s = String(value);
   return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
@@ -709,19 +1060,8 @@ let lastStatusData = null;
 function exportCsv() {
   if (!lastStatusData) return;
   const header = [
-    "device",
-    "host",
-    "ifIndex",
-    "name",
-    "operStatus",
-    "adminStatus",
-    "speedBps",
-    "inOctets",
-    "outOctets",
-    "errors",
-    "discards",
-    "currentInBps",
-    "currentOutBps",
+    "device", "host", "ifIndex", "name", "operStatus", "adminStatus",
+    "speedBps", "inOctets", "outOctets", "errors", "discards", "currentInBps", "currentOutBps",
   ];
   const rows = [header];
   for (const device of lastStatusData.devices) {
@@ -754,28 +1094,80 @@ function exportCsv() {
   URL.revokeObjectURL(url);
 }
 
-async function refresh() {
-  try {
-    const res = await fetch("/api/status");
-    if (!res.ok) throw new Error("HTTP " + res.status);
-    const data = await res.json();
-    lastStatusData = data;
-    renderAlertBanner(data.devices);
-    const container = document.getElementById("devices");
-    container.innerHTML = "";
-    for (const device of data.devices) {
-      container.appendChild(renderDevice(device));
+)JS" R"JS(
+// ---- Top-level wiring: navbar, filter, one-time Overview chart shells,
+// keyed device reconciliation driven by a persistent EventSource push
+// instead of a client poll timer.
+const deviceSections = new Map();
+
+const overviewChartsContainer = document.getElementById("overview-charts");
+const overviewInSpark = createSparkline({ color: "var(--series-in)", label: "Total In", formatValue: formatRate });
+const overviewOutSpark = createSparkline({ color: "var(--series-out)", label: "Total Out", formatValue: formatRate });
+overviewChartsContainer.appendChild(overviewInSpark.wrap);
+overviewChartsContainer.appendChild(overviewOutSpark.wrap);
+
+function renderPorts(data) {
+  const container = document.getElementById("devices");
+  const seen = new Set();
+  for (const device of data.devices) {
+    seen.add(device.id);
+    let handles = deviceSections.get(device.id);
+    if (!handles) {
+      handles = createDeviceSection();
+      deviceSections.set(device.id, handles);
+      container.appendChild(handles.el);
     }
-    document.getElementById("last-updated").textContent = "updated " + new Date().toLocaleTimeString();
-  } catch (e) {
-    document.getElementById("last-updated").textContent = "refresh failed: " + e.message;
+    updateDeviceSection(handles, device);
   }
+  for (const [id, handles] of deviceSections) {
+    if (!seen.has(id)) {
+      handles.el.remove();
+      deviceSections.delete(id);
+    }
+  }
+  applyFilter();
 }
+
+function render(data) {
+  lastStatusData = data;
+  renderAlertBanner(data.devices);
+  renderPorts(data);
+  renderOverview(data);
+  document.getElementById("last-updated").textContent = "updated " + new Date().toLocaleTimeString();
+}
+
+document.querySelectorAll(".nav-btn").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".nav-btn").forEach((b) => b.classList.toggle("active", b === btn));
+    document
+      .querySelectorAll(".page")
+      .forEach((p) => p.classList.toggle("active", p.id === "page-" + btn.dataset.page));
+  });
+});
+
+document.getElementById("port-filter").addEventListener("click", (evt) => {
+  const btn = evt.target.closest(".segmented-btn");
+  if (!btn) return;
+  currentFilter = btn.dataset.filter;
+  document
+    .querySelectorAll("#port-filter .segmented-btn")
+    .forEach((el) => el.classList.toggle("active", el === btn));
+  applyFilter();
+});
 
 document.getElementById("export-csv").addEventListener("click", exportCsv);
 
-refresh();
-setInterval(refresh, REFRESH_MS);
+const events = new EventSource("/api/events");
+events.onmessage = (evt) => {
+  try {
+    render(JSON.parse(evt.data));
+  } catch (e) {
+    document.getElementById("last-updated").textContent = "update failed: " + e.message;
+  }
+};
+events.onerror = () => {
+  document.getElementById("last-updated").textContent = "reconnecting…";
+};
 )JS";
 
 std::string renderLoginPage(bool showError) {
@@ -792,7 +1184,7 @@ std::string renderLoginPage(bool showError) {
 <body>
 <main class="login">
   <form class="login-card" method="post" action="/login">
-    <h1>&#9889; Wiresprite</h1>
+    <h1>)HTML" WIRESPRITE_LOGO_SVG R"HTML( Wiresprite</h1>
     )HTML") +
            errorBanner + R"HTML(
     <label>Username<input type="text" name="username" autocomplete="username" autofocus></label>
@@ -804,5 +1196,7 @@ std::string renderLoginPage(bool showError) {
 </html>
 )HTML";
 }
+
+#undef WIRESPRITE_LOGO_SVG
 
 } // namespace wiresprite::web
