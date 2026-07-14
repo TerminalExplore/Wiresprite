@@ -43,8 +43,8 @@ HttpServer::HttpServer(HttpConfig config, AuthConfig authConfig, std::vector<Dev
 
     registerAuthRoutes(svr_, auth_);
 
-    svr_.Get("/", [](const httplib::Request&, httplib::Response& res) {
-        res.set_content(web::kIndexHtml, "text/html; charset=utf-8");
+    svr_.Get("/", [this](const httplib::Request&, httplib::Response& res) {
+        res.set_content(web::renderIndexPage(auth_.enabled()), "text/html; charset=utf-8");
     });
     svr_.Get("/style.css", [](const httplib::Request&, httplib::Response& res) {
         res.set_content(web::kStyleCss, "text/css; charset=utf-8");
