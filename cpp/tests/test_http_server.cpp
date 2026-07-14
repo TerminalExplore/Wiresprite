@@ -80,6 +80,17 @@ TEST_CASE("HttpServer serves the dashboard, static assets, and /api/status") {
                             "\"ifInDiscards\":0,\"ifOutDiscards\":0}]}]}");
     }
 
+    SUBCASE("GET /metrics returns Prometheus text exposition format") {
+        auto res = client.Get("/metrics");
+        REQUIRE(res != nullptr);
+        CHECK(res->status == 200);
+        CHECK(res->get_header_value("Content-Type").find("text/plain") != std::string::npos);
+        CHECK(res->body.find("# TYPE snmpmon_up gauge") != std::string::npos);
+        CHECK(res->body.find("snmpmon_up{device=\"dev1\",device_ip=\"10.0.0.1\"} 1") != std::string::npos);
+        CHECK(res->body.find("snmpmon_if_in_octets_total{device=\"dev1\",device_ip=\"10.0.0.1\","
+                              "ifindex=\"1\",ifdescr=\"eth0\"} 10") != std::string::npos);
+    }
+
     SUBCASE("unknown route returns 404") {
         auto res = client.Get("/nope");
         REQUIRE(res != nullptr);
