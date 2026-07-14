@@ -31,8 +31,8 @@ void logLine(const std::string& line) {
 } // namespace
 
 Poller::Poller(std::vector<DeviceConfig> devices, PollingConfig polling, DeviceStateStore& store,
-               HistoryStore& history)
-    : devices_(std::move(devices)), polling_(polling), store_(store), history_(history) {}
+               HistoryStore& history, SseHub& sseHub)
+    : devices_(std::move(devices)), polling_(polling), store_(store), history_(history), sseHub_(sseHub) {}
 
 Poller::~Poller() {
     stop();
@@ -80,6 +80,8 @@ void Poller::pollCycle() {
             worker.join();
         }
     }
+
+    sseHub_.notify();
 }
 
 void Poller::pollOneDevice(const DeviceConfig& device) {
