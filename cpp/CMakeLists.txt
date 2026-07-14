@@ -23,6 +23,7 @@ add_library(snmpmon_core STATIC
   src/snmp/pdu.cpp
   src/snmp/udp_socket.cpp
   src/snmp/client.cpp
+  src/poll/if_table.cpp
   src/config/config.cpp
 )
 
