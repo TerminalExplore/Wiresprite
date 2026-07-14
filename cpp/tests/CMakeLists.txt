@@ -8,9 +8,12 @@ add_executable(snmpmon_tests
   test_walk_loopback.cpp
   test_device_state.cpp
   test_poller_loopback.cpp
+  test_json_writer.cpp
+  test_routes_status.cpp
+  test_http_server.cpp
 )
 
-target_include_directories(snmpmon_tests PRIVATE ${CMAKE_SOURCE_DIR}/third_party/doctest)
+target_include_directories(snmpmon_tests SYSTEM PRIVATE ${CMAKE_SOURCE_DIR}/third_party/doctest)
 target_link_libraries(snmpmon_tests PRIVATE snmpmon_core)
 
 if(NOT WIN32)

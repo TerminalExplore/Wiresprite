@@ -6,6 +6,7 @@
 #include <thread>
 
 #include "config/config.hpp"
+#include "http/server.hpp"
 #include "poll/device_state.hpp"
 #include "poll/poller.hpp"
 
@@ -14,19 +15,18 @@ namespace {
 std::atomic<bool> gShutdownRequested{false};
 
 void handleShutdownSignal(int) {
-    // Signal-safe: only sets a flag. The actual poller.stop()/join()
-    // happens back on the normal main-thread control flow below.
+    // Signal-safe: only sets a flag. The actual stop()/join() calls
+    // happen back on normal main-thread control flow below.
     gShutdownRequested.store(true);
 }
 
 } // namespace
 
-// Phase 4: config-driven continuous monitor. Loads the INI config,
-// starts a background Poller that walks every device's ifTable on
-// PollingConfig::intervalSeconds cadence, and runs until Ctrl+C
-// (SIGINT) or SIGTERM, then shuts the poller down cleanly. The HTTP
-// dashboard that will actually read DeviceStateStore lands in Phase 5;
-// this is the headless checkpoint proving the poller itself works.
+// Phase 5: adds the HTTP dashboard on top of Phase 4's background
+// poller. Loads the INI config, starts the Poller and HttpServer (both
+// own their own background thread), and runs until Ctrl+C/SIGTERM.
+// The dashboard reads DeviceStateStore on demand via /api/status;
+// /metrics (Phase 6) and auth (Phase 7) build on this same server.
 int main(int argc, char** argv) {
     std::string configPath = argc > 1 ? argv[1] : "snmpmon.ini";
 
@@ -49,16 +49,27 @@ int main(int argc, char** argv) {
 
     snmpmon::DeviceStateStore store;
     snmpmon::Poller poller(config.devices, config.polling, store);
+    snmpmon::HttpServer httpServer(config.http, config.devices, store);
+
     poller.start();
+    try {
+        httpServer.start();
+    } catch (const std::exception& e) {
+        std::cerr << "Failed to start HTTP server: " << e.what() << "\n";
+        poller.stop();
+        return 3;
+    }
 
     std::cout << "snmpmon: polling " << config.devices.size() << " device(s) every "
-              << config.polling.intervalSeconds << "s (Ctrl+C to stop)\n";
+              << config.polling.intervalSeconds << "s, dashboard on http://" << config.http.listenAddress << ":"
+              << httpServer.boundPort() << " (Ctrl+C to stop)\n";
 
     while (!gShutdownRequested.load()) {
         std::this_thread::sleep_for(std::chrono::milliseconds(200));
     }
 
     std::cout << "snmpmon: shutting down...\n";
+    httpServer.stop();
     poller.stop();
     return 0;
 }
