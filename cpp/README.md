@@ -9,13 +9,17 @@ deploy alongside it, no runtime dependency beyond what the OS already provides (
 
 ## What it does
 
-- Polls one or more SNMP v1/v2c devices' standard IF-MIB `ifTable` on a configurable
+- Polls one or more SNMP v1/v2c devices' standard IF-MIB `ifTable` (plus `ifXTable`'s
+  `ifAlias` for admin-assigned port names, when the agent supports it) on a configurable
   interval, in the background, concurrently (bounded by `max_concurrent_devices`).
 - Serves a live dashboard (`/`) with a per-interface traffic sparkline (in/out, hover for
-  exact values) and JSON API (`/api/status`) over HTTP.
-- Keeps a small in-memory ring buffer (~60 samples/interface) purely so the dashboard has
-  something to plot the moment it's opened — not a time-series database; long-term history
-  and alerting are Prometheus/Grafana's job, not this project's (see below).
+  exact values), an in-page banner summarizing unreachable devices/down ports/errors, a
+  CSV export of the current snapshot, and a JSON API (`/api/status`) over HTTP.
+- Keeps a small in-memory ring buffer (`history_points`, default 240 samples/interface —
+  ~2 hours at the default 30s poll interval) purely so the dashboard has something to plot
+  the moment it's opened — not a time-series database; long-term history and real alerting
+  (delivery, rules, silencing) are Prometheus/Grafana/Alertmanager's job, not this
+  project's (see below).
 - Exposes `/metrics` in Prometheus text exposition format for that long-term story.
 - Optional session-cookie login guarding the dashboard.
 
