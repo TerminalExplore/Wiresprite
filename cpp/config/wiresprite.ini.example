@@ -16,6 +16,10 @@ interval_seconds = 30
 timeout_ms = 1500
 retries = 2
 max_concurrent_devices = 8
+# Ring-buffer size per interface for the dashboard's traffic sparklines.
+# 240 @ the default 30s interval = 2 hours of history; raise this if you
+# want a longer trend window, at ~24 bytes/sample/interface in memory.
+history_points = 240
 
 [device:procurve-2512]
 display_name = HP ProCurve 2512

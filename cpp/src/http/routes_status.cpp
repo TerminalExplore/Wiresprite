@@ -26,6 +26,8 @@ void appendInterfaceJson(std::string& out, const IfEntry& iface, const std::vect
     out += "{\"ifIndex\":" + std::to_string(iface.ifIndex);
     out += ",\"ifDescr\":";
     json::appendEscapedString(out, iface.ifDescr);
+    out += ",\"ifAlias\":";
+    json::appendEscapedString(out, iface.ifAlias);
     out += ",\"ifType\":" + std::to_string(iface.ifType);
     out += ",\"ifSpeed\":" + std::to_string(iface.ifSpeed);
     out += ",\"ifAdminStatus\":" + std::to_string(iface.ifAdminStatus);

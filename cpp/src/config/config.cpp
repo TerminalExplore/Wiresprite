@@ -158,6 +158,8 @@ AppConfig parseConfig(const std::string& iniText) {
                     config.polling.retries = parseIntOrThrow(value, key, lineNumber);
                 } else if (key == "max_concurrent_devices") {
                     config.polling.maxConcurrentDevices = parseIntOrThrow(value, key, lineNumber);
+                } else if (key == "history_points") {
+                    config.polling.historyPoints = parseIntOrThrow(value, key, lineNumber);
                 } else {
                     throw ConfigError("line " + std::to_string(lineNumber) + ": unknown key \"" + key +
                                        "\" in [polling]");

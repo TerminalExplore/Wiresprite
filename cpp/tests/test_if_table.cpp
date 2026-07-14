@@ -96,3 +96,48 @@ TEST_CASE("bucketIfTableVarBinds returns entries in ascending ifIndex order rega
     CHECK(entries[1].ifIndex == 3);
     CHECK(entries[2].ifIndex == 5);
 }
+
+namespace {
+Oid ifAliasOid(uint32_t ifIndex) {
+    return Oid::parse("1.3.6.1.2.1.31.1.1.1.18").withSuffix({ifIndex});
+}
+} // namespace
+
+TEST_CASE("mergeIfAlias sets ifAlias on matching entries by ifIndex") {
+    std::vector<IfEntry> entries = {IfEntry{}, IfEntry{}};
+    entries[0].ifIndex = 1;
+    entries[1].ifIndex = 2;
+
+    std::vector<VarBind> aliasVarbinds = {
+        {ifAliasOid(2), ber::Value::octetString("Uplink to router")},
+        {ifAliasOid(1), ber::Value::octetString("Server Rack A")},
+    };
+
+    mergeIfAlias(entries, aliasVarbinds);
+
+    CHECK(entries[0].ifAlias == "Server Rack A");
+    CHECK(entries[1].ifAlias == "Uplink to router");
+}
+
+TEST_CASE("mergeIfAlias leaves ifAlias empty when the agent doesn't support ifXTable") {
+    std::vector<IfEntry> entries = {IfEntry{}};
+    entries[0].ifIndex = 1;
+
+    mergeIfAlias(entries, {});
+
+    CHECK(entries[0].ifAlias == "");
+}
+
+TEST_CASE("mergeIfAlias ignores malformed OIDs and unmatched ifIndexes") {
+    std::vector<IfEntry> entries = {IfEntry{}};
+    entries[0].ifIndex = 1;
+
+    std::vector<VarBind> aliasVarbinds = {
+        {ifAliasOid(99), ber::Value::octetString("no such interface")},
+        {Oid::parse("1.3.6.1.2.1.31.1.1.1.18"), ber::Value::octetString("missing ifIndex component")},
+    };
+
+    mergeIfAlias(entries, aliasVarbinds);
+
+    CHECK(entries[0].ifAlias == "");
+}

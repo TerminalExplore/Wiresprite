@@ -19,6 +19,7 @@ interval_seconds = 15
 timeout_ms = 2000
 retries = 3
 max_concurrent_devices = 4
+history_points = 120
 
 # a comment line, and a blank line below
 
@@ -47,6 +48,7 @@ version = 2c
     CHECK(config.polling.timeoutMs == 2000);
     CHECK(config.polling.retries == 3);
     CHECK(config.polling.maxConcurrentDevices == 4);
+    CHECK(config.polling.historyPoints == 120);
 
     REQUIRE(config.devices.size() == 2);
 
@@ -72,6 +74,7 @@ TEST_CASE("parseConfig applies defaults when optional sections are absent") {
     CHECK(config.http.listenPort == 8080);
     CHECK(config.auth.username == "admin");
     CHECK(config.polling.intervalSeconds == 30);
+    CHECK(config.polling.historyPoints == 240);
     REQUIRE(config.devices.size() == 1);
     CHECK(config.devices[0].version == SnmpVersion::V2c);
 }

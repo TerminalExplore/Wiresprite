@@ -34,7 +34,7 @@ TEST_CASE("HttpServer serves the dashboard, static assets, and /api/status") {
     HistoryStore history;
     DevicePollResult result;
     result.reachable = true;
-    result.interfaces.push_back(IfEntry{1, "eth0", 6, 1000000000, 1, 1, 10, 20, 0, 0, 0, 0});
+    result.interfaces.push_back(IfEntry{1, "eth0", "", 6, 1000000000, 1, 1, 10, 20, 0, 0, 0, 0});
     store.update("dev1", result);
 
     HttpServer server(httpConfig, AuthConfig{}, {makeDevice("dev1", "10.0.0.1")}, store, history);
@@ -76,7 +76,7 @@ TEST_CASE("HttpServer serves the dashboard, static assets, and /api/status") {
         CHECK(res->get_header_value("Content-Type").find("application/json") != std::string::npos);
         CHECK(res->body == "{\"devices\":[{\"id\":\"dev1\",\"displayName\":\"dev1\",\"host\":\"10.0.0.1\","
                             "\"reachable\":true,\"error\":\"\",\"sysUpTimeTicks\":0,"
-                            "\"interfaces\":[{\"ifIndex\":1,\"ifDescr\":\"eth0\",\"ifType\":6,"
+                            "\"interfaces\":[{\"ifIndex\":1,\"ifDescr\":\"eth0\",\"ifAlias\":\"\",\"ifType\":6,"
                             "\"ifSpeed\":1000000000,\"ifAdminStatus\":1,\"ifOperStatus\":1,"
                             "\"ifInOctets\":10,\"ifOutOctets\":20,\"ifInErrors\":0,\"ifOutErrors\":0,"
                             "\"ifInDiscards\":0,\"ifOutDiscards\":0,\"history\":[]}]}]}");

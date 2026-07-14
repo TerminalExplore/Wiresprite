@@ -72,7 +72,7 @@ TEST_CASE("buildMetricsText: reachable device with interfaces — exact sample v
     result.reachable = true;
     result.sysUpTimeTicks = 123456; // -> 1234.56 seconds
     result.scrapeDurationMs = 42;
-    result.interfaces.push_back(IfEntry{1, "eth0", 6, 1000000000, 1, 1, 111, 222, 3, 4, 5, 6});
+    result.interfaces.push_back(IfEntry{1, "eth0", "", 6, 1000000000, 1, 1, 111, 222, 3, 4, 5, 6});
     store.update("core-switch", result);
 
     std::string text = buildMetricsText(devices, store);
@@ -100,7 +100,7 @@ TEST_CASE("buildMetricsText escapes label values") {
 
     DevicePollResult result;
     result.reachable = true;
-    result.interfaces.push_back(IfEntry{1, "eth0 \"WAN\" \\uplink", 6, 0, 1, 1, 0, 0, 0, 0, 0, 0});
+    result.interfaces.push_back(IfEntry{1, "eth0 \"WAN\" \\uplink", "", 6, 0, 1, 1, 0, 0, 0, 0, 0, 0});
     store.update("dev1", result);
 
     std::string text = buildMetricsText(devices, store);
