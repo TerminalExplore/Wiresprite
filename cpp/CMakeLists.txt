@@ -27,6 +27,7 @@ add_library(wiresprite_core STATIC
   src/poll/device_state.cpp
   src/poll/history_store.cpp
   src/poll/sse_hub.cpp
+  src/poll/mac_table.cpp
   src/poll/poller.cpp
   src/config/config.cpp
   src/http/json_writer.cpp
