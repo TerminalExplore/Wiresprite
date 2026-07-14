@@ -3,6 +3,9 @@ add_executable(snmpmon_tests
   test_oid.cpp
   test_ber.cpp
   test_client_loopback.cpp
+  test_config.cpp
+  test_if_table.cpp
+  test_walk_loopback.cpp
 )
 
 target_include_directories(snmpmon_tests PRIVATE ${CMAKE_SOURCE_DIR}/third_party/doctest)

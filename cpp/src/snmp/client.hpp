@@ -34,8 +34,26 @@ public:
     // SnmpTimeoutError if no matching GetResponse ever arrives.
     SnmpGetResult get(const std::vector<Oid>& oids);
 
+    // Same delivery semantics as get(), but sends a GetNextRequest.
+    SnmpGetResult getNext(const std::vector<Oid>& oids);
+
+    // Same delivery semantics as get(), but sends a GetBulkRequest.
+    // SNMPv2c only; throws std::logic_error if this client is SNMPv1.
+    SnmpGetResult getBulk(int32_t nonRepeaters, int32_t maxRepetitions, const std::vector<Oid>& oids);
+
+    // Walks every leaf in `base`'s subtree, in ascending OID order.
+    // Uses GETBULK for v2c or a GETNEXT loop for v1, stopping at the
+    // subtree boundary, an EndOfMibView/error response, a non-increasing
+    // OID from a misbehaving agent, or a fixed iteration safety cap —
+    // whichever comes first. Propagates SnmpTimeoutError like the other
+    // methods if a request mid-walk never gets a response; callers that
+    // want a "device unreachable" result instead of an exception (e.g.
+    // the poller) catch it there, same as they would around get().
+    std::vector<VarBind> walkSubtree(const Oid& base);
+
 private:
     int32_t nextRequestId();
+    SnmpGetResult sendAndReceive(SnmpMessage request);
 
     std::string host_;
     uint16_t port_;
