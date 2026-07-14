@@ -4,8 +4,11 @@ listen_port = 8080
 
 [auth]
 username = admin
-# Generate with: echo -n "your-password" | sha256sum
-password_hash = 5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d
+# Generate with: printf '%s' "your-password" | sha256sum
+# The example hash below is for the literal password "password" —
+# change it before using this file for real.
+password_hash = 5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8
+# Leave password_hash blank to disable login entirely (open dashboard).
 session_ttl_minutes = 60
 
 [polling]

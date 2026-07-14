@@ -49,7 +49,7 @@ int main(int argc, char** argv) {
 
     snmpmon::DeviceStateStore store;
     snmpmon::Poller poller(config.devices, config.polling, store);
-    snmpmon::HttpServer httpServer(config.http, config.devices, store);
+    snmpmon::HttpServer httpServer(config.http, config.auth, config.devices, store);
 
     poller.start();
     try {
@@ -63,6 +63,9 @@ int main(int argc, char** argv) {
     std::cout << "snmpmon: polling " << config.devices.size() << " device(s) every "
               << config.polling.intervalSeconds << "s, dashboard on http://" << config.http.listenAddress << ":"
               << httpServer.boundPort() << " (Ctrl+C to stop)\n";
+    if (!httpServer.authEnabled()) {
+        std::cout << "snmpmon: [auth] password_hash is not set in [auth] — dashboard login is disabled.\n";
+    }
 
     while (!gShutdownRequested.load()) {
         std::this_thread::sleep_for(std::chrono::milliseconds(200));
