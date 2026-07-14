@@ -7,13 +7,14 @@
 #include "http/routes_status.hpp"
 #include "http/web_assets.hpp"
 
-namespace snmpmon {
+namespace wiresprite {
 
 HttpServer::HttpServer(HttpConfig config, AuthConfig authConfig, std::vector<DeviceConfig> devices,
-                        DeviceStateStore& store)
+                        DeviceStateStore& store, HistoryStore& history)
     : config_(std::move(config)),
       devices_(std::move(devices)),
       store_(store),
+      history_(history),
       auth_(authConfig.username, authConfig.passwordHash, authConfig.sessionTtlMinutes) {
     // / and /api/status carry SNMP data, so they're the two paths this
     // guards. /style.css and /app.js are just presentation code (no
@@ -48,7 +49,7 @@ HttpServer::HttpServer(HttpConfig config, AuthConfig authConfig, std::vector<Dev
         res.set_content(web::kAppJs, "application/javascript; charset=utf-8");
     });
     svr_.Get("/api/status", [this](const httplib::Request&, httplib::Response& res) {
-        res.set_content(buildStatusJson(devices_, store_), "application/json");
+        res.set_content(buildStatusJson(devices_, store_, history_), "application/json");
     });
     // Deliberately unauthenticated, matching standard Prometheus
     // exporter convention.
@@ -85,4 +86,4 @@ void HttpServer::stop() {
     }
 }
 
-} // namespace snmpmon
+} // namespace wiresprite

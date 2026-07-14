@@ -8,8 +8,9 @@
 #include "config/config.hpp"
 #include "httplib.h"
 #include "poll/device_state.hpp"
+#include "poll/history_store.hpp"
 
-namespace snmpmon {
+namespace wiresprite {
 
 // Wraps httplib::Server: registers the dashboard (/, /style.css,
 // /app.js), /api/status, /metrics, and the login/logout routes, and
@@ -18,7 +19,8 @@ namespace snmpmon {
 // the static assets stay open (see server.cpp for why).
 class HttpServer {
 public:
-    HttpServer(HttpConfig config, AuthConfig authConfig, std::vector<DeviceConfig> devices, DeviceStateStore& store);
+    HttpServer(HttpConfig config, AuthConfig authConfig, std::vector<DeviceConfig> devices, DeviceStateStore& store,
+               HistoryStore& history);
     ~HttpServer();
 
     HttpServer(const HttpServer&) = delete;
@@ -41,10 +43,11 @@ private:
     HttpConfig config_;
     std::vector<DeviceConfig> devices_;
     DeviceStateStore& store_;
+    HistoryStore& history_;
     SessionAuth auth_;
     httplib::Server svr_;
     std::thread thread_;
     uint16_t boundPort_ = 0;
 };
 
-} // namespace snmpmon
+} // namespace wiresprite

@@ -9,7 +9,7 @@
 #include "poll/if_table.hpp"
 #include "snmp/client.hpp"
 
-namespace snmpmon {
+namespace wiresprite {
 
 namespace {
 
@@ -30,8 +30,9 @@ void logLine(const std::string& line) {
 
 } // namespace
 
-Poller::Poller(std::vector<DeviceConfig> devices, PollingConfig polling, DeviceStateStore& store)
-    : devices_(std::move(devices)), polling_(polling), store_(store) {}
+Poller::Poller(std::vector<DeviceConfig> devices, PollingConfig polling, DeviceStateStore& store,
+               HistoryStore& history)
+    : devices_(std::move(devices)), polling_(polling), store_(store), history_(history) {}
 
 Poller::~Poller() {
     stop();
@@ -93,7 +94,12 @@ void Poller::pollOneDevice(const DeviceConfig& device) {
          << result.interfaces.size() << " interfaces, " << result.scrapeDurationMs << "ms)";
     logLine(line.str());
 
+    // Diff against the previous poll (still in the store) before
+    // overwriting it, so HistoryStore can compute a rate.
+    auto previous = store_.get(device.id);
+    history_.record(device.id, previous.has_value() ? &*previous : nullptr, result);
+
     store_.update(device.id, std::move(result));
 }
 
-} // namespace snmpmon
+} // namespace wiresprite

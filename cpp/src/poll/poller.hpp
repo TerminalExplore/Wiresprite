@@ -8,18 +8,23 @@
 
 #include "config/config.hpp"
 #include "poll/device_state.hpp"
+#include "poll/history_store.hpp"
 
-namespace snmpmon {
+namespace wiresprite {
 
 // Owns a background thread that polls every configured device on a
 // fixed cadence (PollingConfig::intervalSeconds), writing each result
 // into a DeviceStateStore as soon as it's known. Each poll cycle polls
 // devices concurrently in batches bounded by
 // PollingConfig::maxConcurrentDevices, so one slow or unreachable
-// device delays only its own batch, not the whole cycle.
+// device delays only its own batch, not the whole cycle. Also feeds
+// HistoryStore a rate sample per interface each cycle, diffing this
+// poll's counters against the previous one still sitting in
+// DeviceStateStore.
 class Poller {
 public:
-    Poller(std::vector<DeviceConfig> devices, PollingConfig polling, DeviceStateStore& store);
+    Poller(std::vector<DeviceConfig> devices, PollingConfig polling, DeviceStateStore& store,
+           HistoryStore& history);
     ~Poller();
 
     Poller(const Poller&) = delete;
@@ -43,6 +48,7 @@ private:
     std::vector<DeviceConfig> devices_;
     PollingConfig polling_;
     DeviceStateStore& store_;
+    HistoryStore& history_;
 
     std::thread thread_;
     std::atomic<bool> stopRequested_{false};
@@ -50,4 +56,4 @@ private:
     std::condition_variable cv_; // lets stop() interrupt the between-cycle sleep immediately
 };
 
-} // namespace snmpmon
+} // namespace wiresprite
