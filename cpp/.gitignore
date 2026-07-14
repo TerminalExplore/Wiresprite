@@ -1,0 +1,4 @@
+build/
+CMakeUserPresets.json
+*.ini
+!config/snmpmon.ini.example
