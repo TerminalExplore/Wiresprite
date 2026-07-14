@@ -50,11 +50,20 @@ std::string sha256Hex(const std::string& input) {
     return picosha2::hash256_hex_string(input);
 }
 
-SessionAuth::SessionAuth(std::string username, std::string passwordHash, int sessionTtlMinutes)
-    : username_(std::move(username)), passwordHash_(std::move(passwordHash)), sessionTtl_(sessionTtlMinutes) {}
+SessionAuth::SessionAuth(std::string username, std::string passwordHash, int sessionTtlMinutes, int rememberMeDays)
+    : username_(std::move(username)),
+      passwordHash_(std::move(passwordHash)),
+      sessionTtl_(sessionTtlMinutes),
+      rememberMeTtl_(std::chrono::hours(24) * rememberMeDays) {}
+
+bool SessionAuth::enabled() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return !passwordHash_.empty();
+}
 
 bool SessionAuth::checkCredentials(const std::string& username, const std::string& password) const {
-    if (!enabled()) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (passwordHash_.empty()) {
         return true;
     }
     // Username isn't secret (it's one configured admin account), so a
@@ -66,12 +75,20 @@ bool SessionAuth::checkCredentials(const std::string& username, const std::strin
     return constantTimeEquals(sha256Hex(password), passwordHash_);
 }
 
-std::string SessionAuth::createSession() {
+void SessionAuth::setCredentials(std::string username, std::string passwordHash) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    username_ = std::move(username);
+    passwordHash_ = std::move(passwordHash);
+}
+
+std::string SessionAuth::createSession(bool remember) {
     std::lock_guard<std::mutex> lock(mutex_);
     pruneExpiredLocked();
 
     std::string token = randomSessionToken();
-    sessions_[token] = std::chrono::steady_clock::now() + sessionTtl_;
+    auto ttl = remember ? std::chrono::duration_cast<std::chrono::steady_clock::duration>(rememberMeTtl_)
+                         : std::chrono::duration_cast<std::chrono::steady_clock::duration>(sessionTtl_);
+    sessions_[token] = std::chrono::steady_clock::now() + ttl;
     return token;
 }
 

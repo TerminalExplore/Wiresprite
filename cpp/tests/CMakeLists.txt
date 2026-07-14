@@ -13,6 +13,7 @@ add_executable(wiresprite_tests
   test_poller_loopback.cpp
   test_json_writer.cpp
   test_routes_status.cpp
+  test_routes_config.cpp
   test_routes_metrics.cpp
   test_http_server.cpp
   test_auth.cpp

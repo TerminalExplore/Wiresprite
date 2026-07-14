@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <string>
 #include <thread>
 #include <vector>
 
@@ -15,15 +16,18 @@ namespace wiresprite {
 
 // Wraps httplib::Server: registers the dashboard (/, /style.css,
 // /app.js), /api/status, /api/events (Server-Sent Events push of the
-// same JSON /api/status returns), /metrics, and the login/logout
-// routes, and owns the background thread that serves them. A
-// pre-routing handler guards /, /api/status, and /api/events with
+// same JSON /api/status returns), /metrics, /settings + /api/config
+// (the web settings page), and the login/logout routes, and owns the
+// background thread that serves them. A pre-routing handler guards /,
+// /settings, /api/status, /api/events, and /api/config with
 // SessionAuth; /metrics, /login, and the static assets stay open (see
-// server.cpp for why).
+// server.cpp for why). `configPath` is only used to read/write the ini
+// file for the settings page — devices/polling changes take effect on
+// next restart, not live (see routes_config.cpp).
 class HttpServer {
 public:
     HttpServer(HttpConfig config, AuthConfig authConfig, std::vector<DeviceConfig> devices, DeviceStateStore& store,
-               HistoryStore& history, SseHub& sseHub);
+               HistoryStore& history, SseHub& sseHub, std::string configPath);
     ~HttpServer();
 
     HttpServer(const HttpServer&) = delete;
@@ -49,6 +53,7 @@ private:
     HistoryStore& history_;
     SseHub& sseHub_;
     SessionAuth auth_;
+    std::string configPath_;
     httplib::Server svr_;
     std::thread thread_;
     uint16_t boundPort_ = 0;

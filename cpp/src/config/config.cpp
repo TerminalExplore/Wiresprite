@@ -40,6 +40,21 @@ uint16_t parsePortOrThrow(const std::string& value, const std::string& key, int 
     return static_cast<uint16_t>(parsed);
 }
 
+bool parseBoolOrThrow(const std::string& value, const std::string& key, int lineNumber) {
+    std::string lowered = value;
+    for (char& c : lowered) {
+        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    }
+    if (lowered == "true" || lowered == "1") {
+        return true;
+    }
+    if (lowered == "false" || lowered == "0") {
+        return false;
+    }
+    throw ConfigError("line " + std::to_string(lineNumber) + ": \"" + key + "\" expects true/false, got \"" + value +
+                       "\"");
+}
+
 SnmpVersion parseVersionOrThrow(const std::string& value, int lineNumber) {
     std::string lowered = value;
     for (char& c : lowered) {
@@ -130,6 +145,8 @@ AppConfig parseConfig(const std::string& iniText) {
                     config.http.listenAddress = value;
                 } else if (key == "listen_port") {
                     config.http.listenPort = parsePortOrThrow(value, key, lineNumber);
+                } else if (key == "open_browser_on_first_run") {
+                    config.http.openBrowserOnFirstRun = parseBoolOrThrow(value, key, lineNumber);
                 } else {
                     throw ConfigError("line " + std::to_string(lineNumber) + ": unknown key \"" + key +
                                        "\" in [http]");
@@ -143,6 +160,8 @@ AppConfig parseConfig(const std::string& iniText) {
                     config.auth.passwordHash = value;
                 } else if (key == "session_ttl_minutes") {
                     config.auth.sessionTtlMinutes = parseIntOrThrow(value, key, lineNumber);
+                } else if (key == "remember_me_days") {
+                    config.auth.rememberMeDays = parseIntOrThrow(value, key, lineNumber);
                 } else {
                     throw ConfigError("line " + std::to_string(lineNumber) + ": unknown key \"" + key +
                                        "\" in [auth]");
@@ -207,6 +226,49 @@ AppConfig loadConfig(const std::string& path) {
     std::ostringstream buffer;
     buffer << file.rdbuf();
     return parseConfig(buffer.str());
+}
+
+std::string writeConfig(const AppConfig& config) {
+    std::ostringstream out;
+
+    out << "[http]\n";
+    out << "listen_address = " << config.http.listenAddress << "\n";
+    out << "listen_port = " << config.http.listenPort << "\n";
+    out << "open_browser_on_first_run = " << (config.http.openBrowserOnFirstRun ? "true" : "false") << "\n";
+    out << "\n";
+
+    out << "[auth]\n";
+    out << "username = " << config.auth.username << "\n";
+    out << "password_hash = " << config.auth.passwordHash << "\n";
+    out << "session_ttl_minutes = " << config.auth.sessionTtlMinutes << "\n";
+    out << "remember_me_days = " << config.auth.rememberMeDays << "\n";
+    out << "\n";
+
+    out << "[polling]\n";
+    out << "interval_seconds = " << config.polling.intervalSeconds << "\n";
+    out << "timeout_ms = " << config.polling.timeoutMs << "\n";
+    out << "retries = " << config.polling.retries << "\n";
+    out << "max_concurrent_devices = " << config.polling.maxConcurrentDevices << "\n";
+    out << "history_points = " << config.polling.historyPoints << "\n";
+
+    for (const auto& device : config.devices) {
+        out << "\n[device:" << device.id << "]\n";
+        out << "display_name = " << device.displayName << "\n";
+        out << "host = " << device.host << "\n";
+        out << "port = " << device.port << "\n";
+        out << "community = " << device.community << "\n";
+        out << "version = " << (device.version == SnmpVersion::V1 ? "1" : "2c") << "\n";
+    }
+
+    return out.str();
+}
+
+void saveConfig(const std::string& path, const AppConfig& config) {
+    std::ofstream file(path, std::ios::trunc);
+    if (!file) {
+        throw ConfigError("cannot open config file \"" + path + "\" for writing");
+    }
+    file << writeConfig(config);
 }
 
 } // namespace wiresprite

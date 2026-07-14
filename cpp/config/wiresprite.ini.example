@@ -1,15 +1,24 @@
 [http]
 listen_address = 0.0.0.0
 listen_port = 8080
+# Only ever consulted on a genuine first run (no config file existed
+# yet) — never opens a browser on an ordinary restart, so this is safe
+# to leave on even for a systemd-managed deployment (see packaging/).
+open_browser_on_first_run = true
 
 [auth]
 username = admin
-# Generate with: printf '%s' "your-password" | sha256sum
+# You don't need to compute this by hand — the settings page
+# (/settings, or the setup wizard a fresh install redirects to) will
+# hash whatever you type into "new password" and write it here for
+# you. Manual alternative: printf '%s' "your-password" | sha256sum.
 # The example hash below is for the literal password "password" —
 # change it before using this file for real.
 password_hash = 5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8
 # Leave password_hash blank to disable login entirely (open dashboard).
 session_ttl_minutes = 60
+# Session length when the login page's "Remember me" checkbox is used.
+remember_me_days = 30
 
 [polling]
 interval_seconds = 30

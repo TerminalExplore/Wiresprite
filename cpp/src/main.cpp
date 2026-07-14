@@ -1,12 +1,14 @@
 #include <atomic>
 #include <chrono>
 #include <csignal>
+#include <filesystem>
 #include <iostream>
 #include <string>
 #include <thread>
 
 #include "config/config.hpp"
 #include "http/server.hpp"
+#include "platform/open_browser.hpp"
 #include "poll/device_state.hpp"
 #include "poll/history_store.hpp"
 #include "poll/poller.hpp"
@@ -34,18 +36,30 @@ void handleShutdownSignal(int) {
 int main(int argc, char** argv) {
     std::string configPath = argc > 1 ? argv[1] : "wiresprite.ini";
 
-    wiresprite::AppConfig config;
-    try {
-        config = wiresprite::loadConfig(configPath);
-    } catch (const wiresprite::ConfigError& e) {
-        std::cerr << "Failed to load config \"" << configPath << "\": " << e.what() << "\n";
-        std::cerr << "See config/wiresprite.ini.example for the expected format.\n";
-        return 2;
-    }
+    // A missing config file means a genuine first run: create a default
+    // one (no devices, auth disabled) rather than failing, so the
+    // program comes up cleanly with an empty dashboard the user can
+    // configure from /settings instead of needing to hand-write an ini
+    // first. A config file that exists but fails to *parse* still fails
+    // fast as before — only a missing file gets auto-created.
+    bool isFirstRun = !std::filesystem::exists(configPath);
 
-    if (config.devices.empty()) {
-        std::cerr << "Config \"" << configPath << "\" defines no [device:...] sections.\n";
-        return 2;
+    wiresprite::AppConfig config;
+    if (isFirstRun) {
+        try {
+            wiresprite::saveConfig(configPath, config); // config is default-constructed here
+        } catch (const wiresprite::ConfigError& e) {
+            std::cerr << "Failed to create config \"" << configPath << "\": " << e.what() << "\n";
+            return 2;
+        }
+    } else {
+        try {
+            config = wiresprite::loadConfig(configPath);
+        } catch (const wiresprite::ConfigError& e) {
+            std::cerr << "Failed to load config \"" << configPath << "\": " << e.what() << "\n";
+            std::cerr << "See config/wiresprite.ini.example for the expected format.\n";
+            return 2;
+        }
     }
 
     std::signal(SIGINT, handleShutdownSignal);
@@ -55,7 +69,7 @@ int main(int argc, char** argv) {
     wiresprite::HistoryStore history(static_cast<size_t>(config.polling.historyPoints));
     wiresprite::SseHub sseHub;
     wiresprite::Poller poller(config.devices, config.polling, store, history, sseHub);
-    wiresprite::HttpServer httpServer(config.http, config.auth, config.devices, store, history, sseHub);
+    wiresprite::HttpServer httpServer(config.http, config.auth, config.devices, store, history, sseHub, configPath);
 
     poller.start();
     try {
@@ -71,6 +85,16 @@ int main(int argc, char** argv) {
               << httpServer.boundPort() << " (Ctrl+C to stop)\n";
     if (!httpServer.authEnabled()) {
         std::cout << "wiresprite: [auth] password_hash is not set in [auth] — dashboard login is disabled.\n";
+    }
+
+    // Only on a genuine first run — never on an ordinary restart, which
+    // would be actively wrong for the systemd-managed headless
+    // deployment documented in packaging/ (no display to open a browser
+    // on, and popping one up unprompted on every service restart would
+    // just be annoying even where there is one).
+    if (isFirstRun && config.http.openBrowserOnFirstRun) {
+        std::cout << "wiresprite: first run — opening the dashboard in your browser...\n";
+        wiresprite::openBrowser("http://127.0.0.1:" + std::to_string(httpServer.boundPort()));
     }
 
     while (!gShutdownRequested.load()) {

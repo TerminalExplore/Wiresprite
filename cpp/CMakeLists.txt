@@ -29,9 +29,11 @@ add_library(wiresprite_core STATIC
   src/poll/sse_hub.cpp
   src/poll/mac_table.cpp
   src/poll/poller.cpp
+  src/platform/open_browser.cpp
   src/config/config.cpp
   src/http/json_writer.cpp
   src/http/routes_status.cpp
+  src/http/routes_config.cpp
   src/http/web_assets.cpp
   src/http/routes_metrics.cpp
   src/http/routes_auth.cpp

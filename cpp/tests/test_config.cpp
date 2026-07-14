@@ -92,3 +92,78 @@ TEST_CASE("parseConfig rejects malformed input with the offending line number") 
 TEST_CASE("parseConfig requires every device to have a host") {
     CHECK_THROWS_AS(parseConfig("[device:no-host]\ncommunity = public\n"), ConfigError);
 }
+
+TEST_CASE("parseConfig parses open_browser_on_first_run and remember_me_days") {
+    AppConfig config = parseConfig(
+        "[http]\nopen_browser_on_first_run = false\n[auth]\nremember_me_days = 7\n[device:x]\nhost = 1.2.3.4\n");
+    CHECK(config.http.openBrowserOnFirstRun == false);
+    CHECK(config.auth.rememberMeDays == 7);
+
+    AppConfig defaults = parseConfig("[device:x]\nhost = 1.2.3.4\n");
+    CHECK(defaults.http.openBrowserOnFirstRun == true);
+    CHECK(defaults.auth.rememberMeDays == 30);
+}
+
+TEST_CASE("writeConfig round-trips through parseConfig") {
+    AppConfig original;
+    original.http.listenAddress = "127.0.0.1";
+    original.http.listenPort = 9191;
+    original.http.openBrowserOnFirstRun = false;
+    original.auth.username = "alice";
+    original.auth.passwordHash = "deadbeef";
+    original.auth.sessionTtlMinutes = 45;
+    original.auth.rememberMeDays = 14;
+    original.polling.intervalSeconds = 5;
+    original.polling.timeoutMs = 900;
+    original.polling.retries = 1;
+    original.polling.maxConcurrentDevices = 2;
+    original.polling.historyPoints = 60;
+
+    DeviceConfig d1;
+    d1.id = "sw1";
+    d1.displayName = "Switch One";
+    d1.host = "10.0.0.1";
+    d1.port = 161;
+    d1.community = "public";
+    d1.version = SnmpVersion::V1;
+    original.devices.push_back(d1);
+
+    DeviceConfig d2;
+    d2.id = "sw2";
+    d2.displayName = "sw2";
+    d2.host = "10.0.0.2";
+    d2.port = 1161;
+    d2.community = "private";
+    d2.version = SnmpVersion::V2c;
+    original.devices.push_back(d2);
+
+    AppConfig roundTripped = parseConfig(writeConfig(original));
+
+    CHECK(roundTripped.http.listenAddress == original.http.listenAddress);
+    CHECK(roundTripped.http.listenPort == original.http.listenPort);
+    CHECK(roundTripped.http.openBrowserOnFirstRun == original.http.openBrowserOnFirstRun);
+    CHECK(roundTripped.auth.username == original.auth.username);
+    CHECK(roundTripped.auth.passwordHash == original.auth.passwordHash);
+    CHECK(roundTripped.auth.sessionTtlMinutes == original.auth.sessionTtlMinutes);
+    CHECK(roundTripped.auth.rememberMeDays == original.auth.rememberMeDays);
+    CHECK(roundTripped.polling.intervalSeconds == original.polling.intervalSeconds);
+    CHECK(roundTripped.polling.historyPoints == original.polling.historyPoints);
+
+    REQUIRE(roundTripped.devices.size() == 2);
+    CHECK(roundTripped.devices[0].id == "sw1");
+    CHECK(roundTripped.devices[0].displayName == "Switch One");
+    CHECK(roundTripped.devices[0].host == "10.0.0.1");
+    CHECK(roundTripped.devices[0].version == SnmpVersion::V1);
+    CHECK(roundTripped.devices[1].id == "sw2");
+    CHECK(roundTripped.devices[1].port == 1161);
+    CHECK(roundTripped.devices[1].community == "private");
+    CHECK(roundTripped.devices[1].version == SnmpVersion::V2c);
+}
+
+TEST_CASE("writeConfig on a default-constructed AppConfig round-trips (the first-run case)") {
+    AppConfig defaults;
+    AppConfig roundTripped = parseConfig(writeConfig(defaults));
+    CHECK(roundTripped.devices.empty());
+    CHECK(roundTripped.auth.passwordHash.empty());
+    CHECK(roundTripped.http.listenPort == defaults.http.listenPort);
+}
