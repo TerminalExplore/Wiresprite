@@ -2,6 +2,7 @@
 
 #include <stdexcept>
 
+#include "http/routes_metrics.hpp"
 #include "http/routes_status.hpp"
 #include "http/web_assets.hpp"
 
@@ -20,6 +21,11 @@ HttpServer::HttpServer(HttpConfig config, std::vector<DeviceConfig> devices, Dev
     });
     svr_.Get("/api/status", [this](const httplib::Request&, httplib::Response& res) {
         res.set_content(buildStatusJson(devices_, store_), "application/json");
+    });
+    // Deliberately unauthenticated (Phase 7's login only guards the
+    // dashboard), matching standard Prometheus exporter convention.
+    svr_.Get("/metrics", [this](const httplib::Request&, httplib::Response& res) {
+        res.set_content(buildMetricsText(devices_, store_), "text/plain; version=0.0.4; charset=utf-8");
     });
 }
 
