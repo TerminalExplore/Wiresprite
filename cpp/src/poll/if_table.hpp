@@ -37,6 +37,7 @@ struct DevicePollResult {
     bool reachable = false;
     std::string error; // set when reachable == false
     uint32_t sysUpTimeTicks = 0;
+    std::string sysDescr; // MIB-II sysDescr.0 — vendor/model/firmware string, verbatim
     std::vector<IfEntry> interfaces; // ascending ifIndex order
     std::vector<MacEntry> macTable;  // BRIDGE-MIB dot1dTpFdbTable, learned entries only;
                                       // empty if the device doesn't implement BRIDGE-MIB

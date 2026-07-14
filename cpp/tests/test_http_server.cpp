@@ -103,7 +103,7 @@ TEST_CASE("HttpServer serves the dashboard, static assets, and /api/status") {
         CHECK(res->status == 200);
         CHECK(res->get_header_value("Content-Type").find("application/json") != std::string::npos);
         CHECK(res->body == "{\"devices\":[{\"id\":\"dev1\",\"displayName\":\"dev1\",\"host\":\"10.0.0.1\","
-                            "\"reachable\":true,\"error\":\"\",\"sysUpTimeTicks\":0,"
+                            "\"reachable\":true,\"error\":\"\",\"sysUpTimeTicks\":0,\"sysDescr\":\"\","
                             "\"interfaces\":[{\"ifIndex\":1,\"ifDescr\":\"eth0\",\"ifAlias\":\"\",\"ifType\":6,"
                             "\"ifSpeed\":1000000000,\"ifAdminStatus\":1,\"ifOperStatus\":1,\"ifLastChange\":0,"
                             "\"ifInOctets\":10,\"ifOutOctets\":20,\"ifInErrors\":0,\"ifOutErrors\":0,"

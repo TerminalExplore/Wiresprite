@@ -134,6 +134,7 @@ DevicePollResult pollIfTable(SnmpClient& client) {
     static const Oid kIfEntryBase = Oid::parse("1.3.6.1.2.1.2.2.1");
     static const Oid kIfAlias = Oid::parse("1.3.6.1.2.1.31.1.1.1.18");
     static const Oid kSysUpTime = Oid::parse("1.3.6.1.2.1.1.3.0");
+    static const Oid kSysDescr = Oid::parse("1.3.6.1.2.1.1.1.0");
     static const Oid kBasePortIfIndex = Oid::parse("1.3.6.1.2.1.17.1.4.1.2");
     static const Oid kFdbEntry = Oid::parse("1.3.6.1.2.1.17.4.3.1");
 
@@ -168,10 +169,17 @@ DevicePollResult pollIfTable(SnmpClient& client) {
             // BRIDGE-MIB unsupported or unreachable; leave macTable empty.
         }
 
-        SnmpGetResult uptime = client.get({kSysUpTime});
-        if (uptime.errorStatus == 0 && !uptime.varBinds.empty() &&
-            uptime.varBinds[0].value.tag == ber::Tag::TimeTicks) {
-            result.sysUpTimeTicks = static_cast<uint32_t>(uptime.varBinds[0].value.asUint());
+        // One request for both scalars: SNMP GET responses mirror the
+        // request's varbind order, so varBinds[0]/[1] line up with
+        // kSysUpTime/kSysDescr without needing to match by OID.
+        SnmpGetResult sysInfo = client.get({kSysUpTime, kSysDescr});
+        if (sysInfo.errorStatus == 0 && sysInfo.varBinds.size() == 2) {
+            if (sysInfo.varBinds[0].value.tag == ber::Tag::TimeTicks) {
+                result.sysUpTimeTicks = static_cast<uint32_t>(sysInfo.varBinds[0].value.asUint());
+            }
+            if (sysInfo.varBinds[1].value.tag == ber::Tag::OctetString) {
+                result.sysDescr = sysInfo.varBinds[1].value.asOctetString();
+            }
         }
 
         result.reachable = true;

@@ -90,6 +90,9 @@ void appendDeviceJson(std::string& out, const DeviceConfig& device, const std::o
 
     out += ",\"sysUpTimeTicks\":" + std::to_string(result.has_value() ? result->sysUpTimeTicks : 0);
 
+    out += ",\"sysDescr\":";
+    json::appendEscapedString(out, result.has_value() ? result->sysDescr : "");
+
     out += ",\"interfaces\":[";
     if (result.has_value()) {
         bool first = true;

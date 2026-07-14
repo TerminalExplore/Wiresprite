@@ -32,7 +32,7 @@ TEST_CASE("buildStatusJson: device not yet polled gets a placeholder, not a cras
     std::string expected =
         "{\"devices\":["
         "{\"id\":\"dev1\",\"displayName\":\"Device One\",\"host\":\"10.0.0.1\","
-        "\"reachable\":false,\"error\":\"not polled yet\",\"sysUpTimeTicks\":0,\"interfaces\":[]}"
+        "\"reachable\":false,\"error\":\"not polled yet\",\"sysUpTimeTicks\":0,\"sysDescr\":\"\",\"interfaces\":[]}"
         "]}";
     CHECK(buildStatusJson(devices, store, history) == expected);
 }
@@ -51,7 +51,7 @@ TEST_CASE("buildStatusJson: reachable device with interfaces, no history yet") {
     std::string expected =
         "{\"devices\":["
         "{\"id\":\"dev1\",\"displayName\":\"Device One\",\"host\":\"10.0.0.1\","
-        "\"reachable\":true,\"error\":\"\",\"sysUpTimeTicks\":12345,"
+        "\"reachable\":true,\"error\":\"\",\"sysUpTimeTicks\":12345,\"sysDescr\":\"\","
         "\"interfaces\":[{\"ifIndex\":1,\"ifDescr\":\"eth0\",\"ifAlias\":\"\",\"ifType\":6,\"ifSpeed\":100000000,"
         "\"ifAdminStatus\":1,\"ifOperStatus\":1,\"ifLastChange\":0,\"ifInOctets\":1000,\"ifOutOctets\":500,"
         "\"ifInErrors\":0,\"ifOutErrors\":0,\"ifInDiscards\":0,\"ifOutDiscards\":0,\"macs\":[],\"history\":[]}]}"
@@ -96,7 +96,7 @@ TEST_CASE("buildStatusJson: unreachable device reports its error, escaped") {
         "{\"devices\":["
         "{\"id\":\"dev1\",\"displayName\":\"Device One\",\"host\":\"10.0.0.1\","
         "\"reachable\":false,\"error\":\"SNMP request to 10.0.0.1:161 timed out after 3 attempt(s)\","
-        "\"sysUpTimeTicks\":0,\"interfaces\":[]}"
+        "\"sysUpTimeTicks\":0,\"sysDescr\":\"\",\"interfaces\":[]}"
         "]}";
     CHECK(buildStatusJson(devices, store, history) == expected);
 }
