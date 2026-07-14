@@ -7,6 +7,7 @@
 // external snmpd. Test-only; not part of the shipped library.
 
 #include <algorithm>
+#include <atomic>
 #include <utility>
 #include <vector>
 
@@ -24,6 +25,10 @@ public:
 
     uint16_t port() const { return listener_.localPort(); }
 
+    // How many requests this agent has decoded so far, for tests that
+    // verify a poller actually re-polls on a cadence rather than once.
+    size_t requestsServed() const { return requestsServed_.load(); }
+
     // Serves requests until `timeoutMs` passes with nothing received,
     // which is how it notices the client's walk has finished. Intended
     // to be run on its own std::thread.
@@ -36,6 +41,7 @@ public:
                 return;
             }
             SnmpMessage request = SnmpMessage::decode(data);
+            requestsServed_.fetch_add(1);
             SnmpMessage response = buildResponse(request);
             listener_.sendTo(fromHost, fromPort, response.encode());
         }
@@ -85,6 +91,7 @@ private:
 
     UdpSocket listener_;
     std::vector<std::pair<Oid, ber::Value>> table_;
+    std::atomic<size_t> requestsServed_{0};
 };
 
 } // namespace snmpmon::test
