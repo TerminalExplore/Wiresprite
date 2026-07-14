@@ -5,6 +5,15 @@
 # SNMP-Monitor
 A project to monitor the status of the switch, in my case it was old switch HP ProCurve 2512, but you can take my project and modify it to suit your needs. This project uses SNMP (Simple Network Management Protocol). The script collects statistics about ports, transmitted traffic, errors and other parameters of the device. The data is displayed in the web-interface for easy network monitoring.
 
+## C++ rewrite
+
+This Python prototype has a lightweight, cross-platform C++ successor in [`cpp/`](cpp/) —
+a single ~650KB binary (no Net-SNMP, no OpenSSL, no runtime dependencies beyond the OS
+network stack) that polls multiple devices concurrently, serves a live dashboard, and
+exposes a Prometheus `/metrics` endpoint for Grafana. See [`cpp/README.md`](cpp/README.md)
+for build instructions and full details. The Python version above remains as-is for
+reference.
+
 # Requirements
 To run the project, you need:
 
