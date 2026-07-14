@@ -35,7 +35,7 @@ TEST_CASE("HttpServer serves the dashboard, static assets, and /api/status") {
     result.interfaces.push_back(IfEntry{1, "eth0", 6, 1000000000, 1, 1, 10, 20, 0, 0, 0, 0});
     store.update("dev1", result);
 
-    HttpServer server(httpConfig, {makeDevice("dev1", "10.0.0.1")}, store);
+    HttpServer server(httpConfig, AuthConfig{}, {makeDevice("dev1", "10.0.0.1")}, store);
     server.start();
 
     httplib::Client client("127.0.0.1", server.boundPort());
@@ -116,7 +116,103 @@ TEST_CASE("HttpServer::stop is safe without start, and idempotently") {
     HttpConfig httpConfig;
     httpConfig.listenPort = 0;
     DeviceStateStore store;
-    HttpServer server(httpConfig, {}, store);
+    HttpServer server(httpConfig, AuthConfig{}, {}, store);
     server.stop();
+    server.stop();
+}
+
+TEST_CASE("HttpServer enforces session auth when configured") {
+    HttpConfig httpConfig;
+    httpConfig.listenAddress = "127.0.0.1";
+    httpConfig.listenPort = 0;
+
+    AuthConfig authConfig;
+    authConfig.username = "admin";
+    authConfig.passwordHash = sha256Hex("hunter2");
+    authConfig.sessionTtlMinutes = 60;
+
+    DeviceStateStore store;
+    DevicePollResult result;
+    result.reachable = true;
+    store.update("dev1", result);
+
+    HttpServer server(httpConfig, authConfig, {makeDevice("dev1", "10.0.0.1")}, store);
+    server.start();
+
+    httplib::Client client("127.0.0.1", server.boundPort());
+    client.set_connection_timeout(2, 0);
+    client.set_read_timeout(2, 0);
+    // Redirects should be inspected, not auto-followed, in these checks.
+    client.set_follow_location(false);
+
+    SUBCASE("unauthenticated access to protected paths is rejected") {
+        auto dashboard = client.Get("/");
+        REQUIRE(dashboard != nullptr);
+        CHECK(dashboard->status == 302);
+        CHECK(dashboard->get_header_value("Location") == "/login");
+
+        auto status = client.Get("/api/status");
+        REQUIRE(status != nullptr);
+        CHECK(status->status == 401);
+        CHECK(status->body.find("unauthorized") != std::string::npos);
+    }
+
+    SUBCASE("static assets and /metrics remain accessible without auth") {
+        CHECK(client.Get("/style.css")->status == 200);
+        CHECK(client.Get("/app.js")->status == 200);
+        CHECK(client.Get("/metrics")->status == 200);
+    }
+
+    SUBCASE("GET /login shows the sign-in form without an error banner") {
+        auto res = client.Get("/login");
+        REQUIRE(res != nullptr);
+        CHECK(res->status == 200);
+        CHECK(res->body.find("Sign in") != std::string::npos);
+        CHECK(res->body.find("Invalid username or password") == std::string::npos);
+    }
+
+    SUBCASE("POST /login with the wrong password shows an error") {
+        auto res = client.Post("/login", httplib::Params{{"username", "admin"}, {"password", "not-hunter2"}});
+        REQUIRE(res != nullptr);
+        CHECK(res->status == 401);
+        CHECK(res->body.find("Invalid username or password") != std::string::npos);
+    }
+
+    SUBCASE("full login -> access -> logout flow") {
+        auto loginRes = client.Post("/login", httplib::Params{{"username", "admin"}, {"password", "hunter2"}});
+        REQUIRE(loginRes != nullptr);
+        CHECK(loginRes->status == 302);
+        CHECK(loginRes->get_header_value("Location") == "/");
+
+        std::string setCookie = loginRes->get_header_value("Set-Cookie");
+        REQUIRE(setCookie.find("session=") != std::string::npos);
+        REQUIRE(setCookie.find("HttpOnly") != std::string::npos);
+        size_t start = setCookie.find("session=") + std::string("session=").size();
+        size_t end = setCookie.find(';', start);
+        std::string cookieHeader = "session=" + setCookie.substr(start, end - start);
+
+        httplib::Headers authedHeaders = {{"Cookie", cookieHeader}};
+
+        auto dashboard = client.Get("/", authedHeaders);
+        REQUIRE(dashboard != nullptr);
+        CHECK(dashboard->status == 200);
+
+        auto status = client.Get("/api/status", authedHeaders);
+        REQUIRE(status != nullptr);
+        CHECK(status->status == 200);
+        CHECK(status->body.find("\"reachable\":true") != std::string::npos);
+
+        auto logoutRes = client.Post("/logout", authedHeaders);
+        REQUIRE(logoutRes != nullptr);
+        CHECK(logoutRes->status == 302);
+        CHECK(logoutRes->get_header_value("Location") == "/login");
+
+        // The now-destroyed session cookie no longer grants access.
+        auto afterLogout = client.Get("/", authedHeaders);
+        REQUIRE(afterLogout != nullptr);
+        CHECK(afterLogout->status == 302);
+        CHECK(afterLogout->get_header_value("Location") == "/login");
+    }
+
     server.stop();
 }

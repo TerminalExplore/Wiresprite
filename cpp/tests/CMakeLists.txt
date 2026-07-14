@@ -12,6 +12,8 @@ add_executable(snmpmon_tests
   test_routes_status.cpp
   test_routes_metrics.cpp
   test_http_server.cpp
+  test_auth.cpp
+  test_routes_auth.cpp
 )
 
 target_include_directories(snmpmon_tests SYSTEM PRIVATE ${CMAKE_SOURCE_DIR}/third_party/doctest)

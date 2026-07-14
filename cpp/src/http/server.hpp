@@ -4,6 +4,7 @@
 #include <thread>
 #include <vector>
 
+#include "auth/auth.hpp"
 #include "config/config.hpp"
 #include "httplib.h"
 #include "poll/device_state.hpp"
@@ -11,12 +12,13 @@
 namespace snmpmon {
 
 // Wraps httplib::Server: registers the dashboard (/, /style.css,
-// /app.js) and /api/status routes, and owns the background thread
-// that serves them. /metrics (Phase 6) and auth (Phase 7) add routes
-// here later; this class doesn't grow beyond route wiring + lifecycle.
+// /app.js), /api/status, /metrics, and the login/logout routes, and
+// owns the background thread that serves them. A pre-routing handler
+// guards / and /api/status with SessionAuth; /metrics, /login, and
+// the static assets stay open (see server.cpp for why).
 class HttpServer {
 public:
-    HttpServer(HttpConfig config, std::vector<DeviceConfig> devices, DeviceStateStore& store);
+    HttpServer(HttpConfig config, AuthConfig authConfig, std::vector<DeviceConfig> devices, DeviceStateStore& store);
     ~HttpServer();
 
     HttpServer(const HttpServer&) = delete;
@@ -33,11 +35,13 @@ public:
     void stop();
 
     uint16_t boundPort() const { return boundPort_; }
+    bool authEnabled() const { return auth_.enabled(); }
 
 private:
     HttpConfig config_;
     std::vector<DeviceConfig> devices_;
     DeviceStateStore& store_;
+    SessionAuth auth_;
     httplib::Server svr_;
     std::thread thread_;
     uint16_t boundPort_ = 0;
