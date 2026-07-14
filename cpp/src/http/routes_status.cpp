@@ -1,10 +1,35 @@
 #include "http/routes_status.hpp"
 
+#include <cstdio>
+
 #include "http/json_writer.hpp"
 
 namespace wiresprite {
 
 namespace {
+
+std::string macToHexString(const std::array<uint8_t, 6>& address) {
+    char buf[18]; // "xx:xx:xx:xx:xx:xx" + NUL
+    std::snprintf(buf, sizeof(buf), "%02x:%02x:%02x:%02x:%02x:%02x", address[0], address[1], address[2], address[3],
+                  address[4], address[5]);
+    return std::string(buf);
+}
+
+void appendMacsJson(std::string& out, const std::vector<MacEntry>& macTable, uint32_t ifIndex) {
+    out += "[";
+    bool first = true;
+    for (const auto& mac : macTable) {
+        if (mac.ifIndex != ifIndex) {
+            continue;
+        }
+        if (!first) {
+            out += ",";
+        }
+        first = false;
+        json::appendEscapedString(out, macToHexString(mac.address));
+    }
+    out += "]";
+}
 
 void appendHistoryJson(std::string& out, const std::vector<HistoryPoint>& points) {
     out += "[";
@@ -22,7 +47,8 @@ void appendHistoryJson(std::string& out, const std::vector<HistoryPoint>& points
     out += "]";
 }
 
-void appendInterfaceJson(std::string& out, const IfEntry& iface, const std::vector<HistoryPoint>& history) {
+void appendInterfaceJson(std::string& out, const IfEntry& iface, const std::vector<HistoryPoint>& history,
+                          const std::vector<MacEntry>& macTable) {
     out += "{\"ifIndex\":" + std::to_string(iface.ifIndex);
     out += ",\"ifDescr\":";
     json::appendEscapedString(out, iface.ifDescr);
@@ -32,12 +58,15 @@ void appendInterfaceJson(std::string& out, const IfEntry& iface, const std::vect
     out += ",\"ifSpeed\":" + std::to_string(iface.ifSpeed);
     out += ",\"ifAdminStatus\":" + std::to_string(iface.ifAdminStatus);
     out += ",\"ifOperStatus\":" + std::to_string(iface.ifOperStatus);
+    out += ",\"ifLastChange\":" + std::to_string(iface.ifLastChangeTicks);
     out += ",\"ifInOctets\":" + std::to_string(iface.ifInOctets);
     out += ",\"ifOutOctets\":" + std::to_string(iface.ifOutOctets);
     out += ",\"ifInErrors\":" + std::to_string(iface.ifInErrors);
     out += ",\"ifOutErrors\":" + std::to_string(iface.ifOutErrors);
     out += ",\"ifInDiscards\":" + std::to_string(iface.ifInDiscards);
     out += ",\"ifOutDiscards\":" + std::to_string(iface.ifOutDiscards);
+    out += ",\"macs\":";
+    appendMacsJson(out, macTable, iface.ifIndex);
     out += ",\"history\":";
     appendHistoryJson(out, history);
     out += "}";
@@ -69,7 +98,7 @@ void appendDeviceJson(std::string& out, const DeviceConfig& device, const std::o
                 out += ",";
             }
             first = false;
-            appendInterfaceJson(out, iface, history.get(device.id, iface.ifIndex));
+            appendInterfaceJson(out, iface, history.get(device.id, iface.ifIndex), result->macTable);
         }
     }
     out += "]}";

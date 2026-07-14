@@ -334,6 +334,23 @@ main {
   font-weight: 600;
 }
 
+.mac-details {
+  margin-top: 0.5rem;
+  font-size: 0.78rem;
+}
+
+.mac-details summary {
+  color: var(--ink-secondary);
+  cursor: pointer;
+}
+
+.mac-details ul {
+  margin: 0.35rem 0 0;
+  padding-left: 1.1rem;
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+
 .down-ports {
   display: flex;
   flex-wrap: wrap;
@@ -694,6 +711,14 @@ function formatDuration(totalSeconds) {
   return minutes + "m";
 }
 
+// ifLastChange is in the same TimeTicks epoch as the device's own
+// sysUpTimeTicks (RFC2863: "the value of sysUpTime at the time this
+// interface entered its current state"), so the time since is just
+// the difference between the two, in centiseconds.
+function formatSinceChange(sysUpTimeTicks, ifLastChangeTicks) {
+  return formatDuration((sysUpTimeTicks - ifLastChangeTicks) / 100);
+}
+
 )JS" R"JS(
 // ---- Sparkline: split into create (build DOM + wire listeners once)
 // and update (recompute the path/label only) so a live SSE push never
@@ -905,10 +930,19 @@ function createIfaceCard() {
   warn.style.display = "none";
   card.appendChild(warn);
 
-  return { el: card, name, pill, meta, inSpark, outSpark, warn, ifOperStatus: null };
+  const macDetails = document.createElement("details");
+  macDetails.className = "mac-details";
+  macDetails.style.display = "none";
+  const macSummary = document.createElement("summary");
+  macDetails.appendChild(macSummary);
+  const macList = document.createElement("ul");
+  macDetails.appendChild(macList);
+  card.appendChild(macDetails);
+
+  return { el: card, name, pill, meta, inSpark, outSpark, warn, macDetails, macSummary, macList, ifOperStatus: null };
 }
 
-function updateIfaceCard(handles, iface) {
+function updateIfaceCard(handles, iface, sysUpTimeTicks) {
   handles.name.textContent = iface.ifAlias || iface.ifDescr || ("#" + iface.ifIndex);
 
   let cls, icon;
@@ -926,7 +960,24 @@ function updateIfaceCard(handles, iface) {
   handles.pill.textContent = icon + " " + statusLabel(iface.ifOperStatus);
 
   handles.meta.textContent =
-    formatRate(iface.ifSpeed) + " link · admin " + statusLabel(iface.ifAdminStatus).toLowerCase();
+    formatRate(iface.ifSpeed) +
+    " link · admin " +
+    statusLabel(iface.ifAdminStatus).toLowerCase() +
+    " · up " +
+    formatSinceChange(sysUpTimeTicks, iface.ifLastChange);
+
+  handles.macList.innerHTML = "";
+  if (iface.macs && iface.macs.length > 0) {
+    handles.macSummary.textContent = iface.macs.length + " device" + (iface.macs.length > 1 ? "s" : "");
+    for (const mac of iface.macs) {
+      const li = document.createElement("li");
+      li.textContent = mac;
+      handles.macList.appendChild(li);
+    }
+    handles.macDetails.style.display = "block";
+  } else {
+    handles.macDetails.style.display = "none";
+  }
 
   const inPoints = iface.history.map((h) => ({ t: h.t, v: h.inBps }));
   const outPoints = iface.history.map((h) => ({ t: h.t, v: h.outBps }));
@@ -1033,7 +1084,7 @@ function updateDeviceSection(handles, device) {
       handles.ifaceCards.set(iface.ifIndex, cardHandles);
       handles.grid.appendChild(cardHandles.el);
     }
-    updateIfaceCard(cardHandles, iface);
+    updateIfaceCard(cardHandles, iface, device.sysUpTimeTicks);
   }
   for (const [ifIndex, cardHandles] of handles.ifaceCards) {
     if (!seen.has(ifIndex)) {
@@ -1051,7 +1102,13 @@ function updateDeviceSection(handles, device) {
     badge.className = "down-badge";
     const icon = iface.ifOperStatus === 2 ? "▲" : "◆";
     badge.textContent =
-      icon + " " + (iface.ifAlias || iface.ifDescr || "#" + iface.ifIndex) + " · " + statusLabel(iface.ifOperStatus);
+      icon +
+      " " +
+      (iface.ifAlias || iface.ifDescr || "#" + iface.ifIndex) +
+      " · " +
+      statusLabel(iface.ifOperStatus) +
+      " · " +
+      formatSinceChange(device.sysUpTimeTicks, iface.ifLastChange);
     handles.downList.appendChild(badge);
   }
 }

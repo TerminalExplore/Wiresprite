@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 
+#include "poll/mac_table.hpp"
 #include "snmp/client.hpp"
 #include "snmp/pdu.hpp"
 
@@ -27,6 +28,9 @@ struct IfEntry {
     uint64_t ifOutErrors = 0;
     uint64_t ifInDiscards = 0;
     uint64_t ifOutDiscards = 0;
+    uint32_t ifLastChangeTicks = 0; // sysUpTime (same units/epoch as DevicePollResult::
+                                     // sysUpTimeTicks) at which this interface entered
+                                     // its current operational state
 };
 
 struct DevicePollResult {
@@ -34,6 +38,8 @@ struct DevicePollResult {
     std::string error; // set when reachable == false
     uint32_t sysUpTimeTicks = 0;
     std::vector<IfEntry> interfaces; // ascending ifIndex order
+    std::vector<MacEntry> macTable;  // BRIDGE-MIB dot1dTpFdbTable, learned entries only;
+                                      // empty if the device doesn't implement BRIDGE-MIB
     uint32_t scrapeDurationMs = 0;   // how long pollIfTable took, success or failure
     int64_t polledAtUnixSec = 0;     // wall-clock time this result was captured; lets
                                       // HistoryStore compute a rate between two polls
@@ -55,11 +61,11 @@ std::vector<IfEntry> bucketIfTableVarBinds(const std::vector<VarBind>& varbinds)
 // as an error.
 void mergeIfAlias(std::vector<IfEntry>& entries, const std::vector<VarBind>& ifAliasVarbinds);
 
-// Walks ifTable (plus ifXTable for ifAlias) and fetches sysUpTime.0 for
-// one device. Never throws: network/protocol failures come back as
-// DevicePollResult::reachable == false with `error` set, so one
-// unreachable device can't abort a polling cycle covering several (see
-// Phase 4's poller).
+// Walks ifTable (plus ifXTable for ifAlias and BRIDGE-MIB for the MAC
+// table) and fetches sysUpTime.0 for one device. Never throws: network/
+// protocol failures come back as DevicePollResult::reachable == false
+// with `error` set, so one unreachable device can't abort a polling
+// cycle covering several (see Phase 4's poller).
 DevicePollResult pollIfTable(SnmpClient& client);
 
 } // namespace wiresprite

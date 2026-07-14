@@ -53,8 +53,8 @@ TEST_CASE("buildStatusJson: reachable device with interfaces, no history yet") {
         "{\"id\":\"dev1\",\"displayName\":\"Device One\",\"host\":\"10.0.0.1\","
         "\"reachable\":true,\"error\":\"\",\"sysUpTimeTicks\":12345,"
         "\"interfaces\":[{\"ifIndex\":1,\"ifDescr\":\"eth0\",\"ifAlias\":\"\",\"ifType\":6,\"ifSpeed\":100000000,"
-        "\"ifAdminStatus\":1,\"ifOperStatus\":1,\"ifInOctets\":1000,\"ifOutOctets\":500,"
-        "\"ifInErrors\":0,\"ifOutErrors\":0,\"ifInDiscards\":0,\"ifOutDiscards\":0,\"history\":[]}]}"
+        "\"ifAdminStatus\":1,\"ifOperStatus\":1,\"ifLastChange\":0,\"ifInOctets\":1000,\"ifOutOctets\":500,"
+        "\"ifInErrors\":0,\"ifOutErrors\":0,\"ifInDiscards\":0,\"ifOutDiscards\":0,\"macs\":[],\"history\":[]}]}"
         "]}";
     CHECK(buildStatusJson(devices, store, history) == expected);
 }
