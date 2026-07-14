@@ -31,7 +31,9 @@ add_library(snmpmon_core STATIC
   src/http/routes_status.cpp
   src/http/web_assets.cpp
   src/http/routes_metrics.cpp
+  src/http/routes_auth.cpp
   src/http/server.cpp
+  src/auth/auth.cpp
 )
 
 target_include_directories(snmpmon_core PUBLIC src)
