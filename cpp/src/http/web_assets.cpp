@@ -14,10 +14,14 @@ const char* const kIndexHtml = R"HTML(<!DOCTYPE html>
 <header>
   <h1>&#9889; Wiresprite</h1>
   <span id="last-updated">loading&hellip;</span>
-  <form method="post" action="/logout" class="logout-form">
-    <button type="submit">Log out</button>
-  </form>
+  <div class="header-actions">
+    <button type="button" id="export-csv" class="header-button">Export CSV</button>
+    <form method="post" action="/logout" class="logout-form">
+      <button type="submit" class="header-button">Log out</button>
+    </form>
+  </div>
 </header>
+<div id="alert-banner"></div>
 <main id="devices"></main>
 <script src="/app.js"></script>
 </body>
@@ -276,11 +280,14 @@ main {
   z-index: 1;
 }
 
-.logout-form {
+.header-actions {
   margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
-.logout-form button {
+.header-button {
   font: inherit;
   padding: 0.35rem 0.75rem;
   border: 1px solid var(--border);
@@ -290,8 +297,35 @@ main {
   cursor: pointer;
 }
 
-.logout-form button:hover {
+.header-button:hover {
   background: color-mix(in srgb, var(--ink) 8%, transparent);
+}
+
+/* Icon + text always together, never color alone, matching the pills. */
+.alert-banner {
+  display: none;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: 1200px;
+  margin: 0 auto 1rem;
+  padding: 0.6rem 1rem;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.alert-banner.visible {
+  display: flex;
+}
+
+.alert-banner.warning {
+  background: var(--status-warning-wash);
+  color: var(--status-warning);
+}
+
+.alert-banner.critical {
+  background: var(--status-critical-wash);
+  color: var(--status-critical);
 }
 
 .login {
@@ -548,7 +582,7 @@ function renderInterfaceCard(iface) {
   head.className = "iface-head";
   const name = document.createElement("span");
   name.className = "iface-name";
-  name.textContent = iface.ifDescr || ("#" + iface.ifIndex);
+  name.textContent = iface.ifAlias || iface.ifDescr || ("#" + iface.ifIndex);
   head.appendChild(name);
   head.appendChild(renderStatusPill(iface.ifOperStatus));
   card.appendChild(head);
@@ -619,11 +653,114 @@ function renderDevice(device) {
   return el;
 }
 
+// Aggregates already-fetched status data into a single summary banner —
+// not a replacement for Alertmanager (no delivery/rules/silencing),
+// just surfacing state the dashboard already knows so the user doesn't
+// have to scan every card. Admin-disabled ports (ifAdminStatus !== 1)
+// are excluded so intentionally-off ports don't count as "down".
+function renderAlertBanner(devices) {
+  const banner = document.getElementById("alert-banner");
+  let unreachableDevices = 0;
+  let downPorts = 0;
+  let errorPorts = 0;
+
+  for (const device of devices) {
+    if (!device.reachable) {
+      unreachableDevices++;
+      continue;
+    }
+    for (const iface of device.interfaces) {
+      if (iface.ifAdminStatus === 1 && iface.ifOperStatus === 2) {
+        downPorts++;
+      }
+      if (iface.ifInErrors + iface.ifOutErrors + iface.ifInDiscards + iface.ifOutDiscards > 0) {
+        errorPorts++;
+      }
+    }
+  }
+
+  if (unreachableDevices === 0 && downPorts === 0 && errorPorts === 0) {
+    banner.className = "alert-banner";
+    banner.textContent = "";
+    return;
+  }
+
+  const parts = [];
+  if (unreachableDevices > 0) parts.push(unreachableDevices + " device(s) unreachable");
+  if (downPorts > 0) parts.push(downPorts + " port(s) down");
+  if (errorPorts > 0) parts.push(errorPorts + " port(s) with errors/discards");
+
+  const severity = unreachableDevices > 0 || downPorts > 0 ? "critical" : "warning";
+  const icon = severity === "critical" ? "▲" : "◆"; // triangle / diamond, matches the pills
+  banner.className = "alert-banner visible " + severity;
+  banner.textContent = icon + " " + parts.join(", ");
+}
+
+// Builds a CSV of the last fetched snapshot, client-side only — the
+// data is already in the browser from the last /api/status poll, so no
+// new server endpoint is needed.
+function toCsvField(value) {
+  const s = String(value);
+  return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+
+let lastStatusData = null;
+
+function exportCsv() {
+  if (!lastStatusData) return;
+  const header = [
+    "device",
+    "host",
+    "ifIndex",
+    "name",
+    "operStatus",
+    "adminStatus",
+    "speedBps",
+    "inOctets",
+    "outOctets",
+    "errors",
+    "discards",
+    "currentInBps",
+    "currentOutBps",
+  ];
+  const rows = [header];
+  for (const device of lastStatusData.devices) {
+    for (const iface of device.interfaces) {
+      const last = iface.history.length > 0 ? iface.history[iface.history.length - 1] : null;
+      rows.push([
+        device.displayName,
+        device.host,
+        iface.ifIndex,
+        iface.ifAlias || iface.ifDescr,
+        statusLabel(iface.ifOperStatus),
+        statusLabel(iface.ifAdminStatus),
+        iface.ifSpeed,
+        iface.ifInOctets,
+        iface.ifOutOctets,
+        iface.ifInErrors + iface.ifOutErrors,
+        iface.ifInDiscards + iface.ifOutDiscards,
+        last ? last.inBps : "",
+        last ? last.outBps : "",
+      ]);
+    }
+  }
+  const csv = rows.map((row) => row.map(toCsvField).join(",")).join("\r\n");
+  const blob = new Blob([csv], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "wiresprite-status-" + new Date().toISOString().replace(/[:.]/g, "-") + ".csv";
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 async function refresh() {
   try {
     const res = await fetch("/api/status");
     if (!res.ok) throw new Error("HTTP " + res.status);
     const data = await res.json();
+    lastStatusData = data;
+    renderAlertBanner(data.devices);
     const container = document.getElementById("devices");
     container.innerHTML = "";
     for (const device of data.devices) {
@@ -634,6 +771,8 @@ async function refresh() {
     document.getElementById("last-updated").textContent = "refresh failed: " + e.message;
   }
 }
+
+document.getElementById("export-csv").addEventListener("click", exportCsv);
 
 refresh();
 setInterval(refresh, REFRESH_MS);
