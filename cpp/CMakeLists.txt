@@ -27,6 +27,8 @@ add_library(snmpmon_core STATIC
   src/poll/device_state.cpp
   src/poll/poller.cpp
   src/config/config.cpp
+  src/http/json_writer.cpp
+  src/http/routes_status.cpp
 )
 
 target_include_directories(snmpmon_core PUBLIC
