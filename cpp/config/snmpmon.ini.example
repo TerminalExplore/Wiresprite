@@ -1,0 +1,29 @@
+[http]
+listen_address = 0.0.0.0
+listen_port = 8080
+
+[auth]
+username = admin
+# Generate with: echo -n "your-password" | sha256sum
+password_hash = 5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d
+session_ttl_minutes = 60
+
+[polling]
+interval_seconds = 30
+timeout_ms = 1500
+retries = 2
+max_concurrent_devices = 8
+
+[device:procurve-2512]
+display_name = HP ProCurve 2512
+host = 192.168.1.1
+port = 161
+community = public
+version = 1
+
+[device:core-switch]
+display_name = Core Switch
+host = 10.0.0.2
+port = 161
+community = public
+version = 2c
