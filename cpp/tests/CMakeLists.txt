@@ -8,6 +8,7 @@ add_executable(wiresprite_tests
   test_walk_loopback.cpp
   test_device_state.cpp
   test_history_store.cpp
+  test_sse_hub.cpp
   test_poller_loopback.cpp
   test_json_writer.cpp
   test_routes_status.cpp

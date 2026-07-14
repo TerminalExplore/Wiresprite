@@ -7,6 +7,7 @@
 #include "httplib.h"
 #include "poll/device_state.hpp"
 #include "poll/history_store.hpp"
+#include "poll/sse_hub.hpp"
 
 using namespace wiresprite;
 
@@ -32,17 +33,44 @@ TEST_CASE("HttpServer serves the dashboard, static assets, and /api/status") {
 
     DeviceStateStore store;
     HistoryStore history;
+    SseHub sseHub;
     DevicePollResult result;
     result.reachable = true;
     result.interfaces.push_back(IfEntry{1, "eth0", "", 6, 1000000000, 1, 1, 10, 20, 0, 0, 0, 0});
     store.update("dev1", result);
 
-    HttpServer server(httpConfig, AuthConfig{}, {makeDevice("dev1", "10.0.0.1")}, store, history);
+    HttpServer server(httpConfig, AuthConfig{}, {makeDevice("dev1", "10.0.0.1")}, store, history, sseHub);
     server.start();
 
     httplib::Client client("127.0.0.1", server.boundPort());
     client.set_connection_timeout(2, 0);
     client.set_read_timeout(2, 0);
+
+    SUBCASE("GET /api/events streams the current snapshot as an SSE frame") {
+        // The connection stays open indefinitely (until the client
+        // cancels or the server shuts down), so returning false from
+        // the content receiver to stop after the first chunk is
+        // expected here — httplib reports that as Error::Canceled and
+        // the Result's Response is discarded, so the response_handler
+        // (invoked once headers arrive, before any body streaming) is
+        // what captures status/headers instead of the (nullptr) Result.
+        std::string contentType;
+        std::string received;
+        client.Get(
+            "/api/events",
+            [&](const httplib::Response& headerRes) {
+                contentType = headerRes.get_header_value("Content-Type");
+                return true;
+            },
+            [&](const char* data, size_t len) {
+                received.append(data, len);
+                return false; // stop after the first chunk; this isn't a real EventSource
+            });
+        CHECK(contentType.find("text/event-stream") != std::string::npos);
+        CHECK(received.substr(0, 6) == "data: ");
+        CHECK(received.find("\"id\":\"dev1\"") != std::string::npos);
+        CHECK(received.find("\"ifDescr\":\"eth0\"") != std::string::npos);
+    }
 
     SUBCASE("GET / returns the dashboard shell") {
         auto res = client.Get("/");
@@ -66,7 +94,7 @@ TEST_CASE("HttpServer serves the dashboard, static assets, and /api/status") {
         REQUIRE(res != nullptr);
         CHECK(res->status == 200);
         CHECK(res->get_header_value("Content-Type").find("javascript") != std::string::npos);
-        CHECK(res->body.find("/api/status") != std::string::npos);
+        CHECK(res->body.find("/api/events") != std::string::npos);
     }
 
     SUBCASE("GET /api/status returns JSON reflecting the live DeviceStateStore") {
@@ -119,7 +147,8 @@ TEST_CASE("HttpServer::stop is safe without start, and idempotently") {
     httpConfig.listenPort = 0;
     DeviceStateStore store;
     HistoryStore history;
-    HttpServer server(httpConfig, AuthConfig{}, {}, store, history);
+    SseHub sseHub;
+    HttpServer server(httpConfig, AuthConfig{}, {}, store, history, sseHub);
     server.stop();
     server.stop();
 }
@@ -136,11 +165,12 @@ TEST_CASE("HttpServer enforces session auth when configured") {
 
     DeviceStateStore store;
     HistoryStore history;
+    SseHub sseHub;
     DevicePollResult result;
     result.reachable = true;
     store.update("dev1", result);
 
-    HttpServer server(httpConfig, authConfig, {makeDevice("dev1", "10.0.0.1")}, store, history);
+    HttpServer server(httpConfig, authConfig, {makeDevice("dev1", "10.0.0.1")}, store, history, sseHub);
     server.start();
 
     httplib::Client client("127.0.0.1", server.boundPort());
@@ -159,6 +189,10 @@ TEST_CASE("HttpServer enforces session auth when configured") {
         REQUIRE(status != nullptr);
         CHECK(status->status == 401);
         CHECK(status->body.find("unauthorized") != std::string::npos);
+
+        auto events = client.Get("/api/events");
+        REQUIRE(events != nullptr);
+        CHECK(events->status == 401);
     }
 
     SUBCASE("static assets and /metrics remain accessible without auth") {

@@ -9,18 +9,21 @@
 #include "httplib.h"
 #include "poll/device_state.hpp"
 #include "poll/history_store.hpp"
+#include "poll/sse_hub.hpp"
 
 namespace wiresprite {
 
 // Wraps httplib::Server: registers the dashboard (/, /style.css,
-// /app.js), /api/status, /metrics, and the login/logout routes, and
-// owns the background thread that serves them. A pre-routing handler
-// guards / and /api/status with SessionAuth; /metrics, /login, and
-// the static assets stay open (see server.cpp for why).
+// /app.js), /api/status, /api/events (Server-Sent Events push of the
+// same JSON /api/status returns), /metrics, and the login/logout
+// routes, and owns the background thread that serves them. A
+// pre-routing handler guards /, /api/status, and /api/events with
+// SessionAuth; /metrics, /login, and the static assets stay open (see
+// server.cpp for why).
 class HttpServer {
 public:
     HttpServer(HttpConfig config, AuthConfig authConfig, std::vector<DeviceConfig> devices, DeviceStateStore& store,
-               HistoryStore& history);
+               HistoryStore& history, SseHub& sseHub);
     ~HttpServer();
 
     HttpServer(const HttpServer&) = delete;
@@ -44,6 +47,7 @@ private:
     std::vector<DeviceConfig> devices_;
     DeviceStateStore& store_;
     HistoryStore& history_;
+    SseHub& sseHub_;
     SessionAuth auth_;
     httplib::Server svr_;
     std::thread thread_;
