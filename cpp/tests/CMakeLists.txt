@@ -10,6 +10,7 @@ add_executable(snmpmon_tests
   test_poller_loopback.cpp
   test_json_writer.cpp
   test_routes_status.cpp
+  test_routes_metrics.cpp
   test_http_server.cpp
 )
 

@@ -86,14 +86,11 @@ void Poller::pollOneDevice(const DeviceConfig& device) {
     client.setTimeoutMs(polling_.timeoutMs);
     client.setRetries(polling_.retries);
 
-    auto start = std::chrono::steady_clock::now();
     DevicePollResult result = pollIfTable(client);
-    auto elapsedMs =
-        std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start).count();
 
     std::ostringstream line;
     line << "[poll] " << device.id << ": " << (result.reachable ? "ok" : "unreachable") << " ("
-         << result.interfaces.size() << " interfaces, " << elapsedMs << "ms)";
+         << result.interfaces.size() << " interfaces, " << result.scrapeDurationMs << "ms)";
     logLine(line.str());
 
     store_.update(device.id, std::move(result));

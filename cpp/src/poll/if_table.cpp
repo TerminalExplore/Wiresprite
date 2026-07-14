@@ -1,5 +1,6 @@
 #include "poll/if_table.hpp"
 
+#include <chrono>
 #include <map>
 
 #include "snmp/oid.hpp"
@@ -109,6 +110,7 @@ DevicePollResult pollIfTable(SnmpClient& client) {
     static const Oid kSysUpTime = Oid::parse("1.3.6.1.2.1.1.3.0");
 
     DevicePollResult result;
+    auto start = std::chrono::steady_clock::now();
     try {
         std::vector<VarBind> varbinds = client.walkSubtree(kIfEntryBase);
         result.interfaces = bucketIfTableVarBinds(varbinds);
@@ -124,6 +126,8 @@ DevicePollResult pollIfTable(SnmpClient& client) {
         result.reachable = false;
         result.error = e.what();
     }
+    result.scrapeDurationMs = static_cast<uint32_t>(
+        std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start).count());
 
     return result;
 }

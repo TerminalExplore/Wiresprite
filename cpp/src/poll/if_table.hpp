@@ -33,6 +33,7 @@ struct DevicePollResult {
     std::string error; // set when reachable == false
     uint32_t sysUpTimeTicks = 0;
     std::vector<IfEntry> interfaces; // ascending ifIndex order
+    uint32_t scrapeDurationMs = 0;   // how long pollIfTable took, success or failure
 };
 
 // Pure bucketing logic: groups ifTable varbinds (as returned by a WALK
