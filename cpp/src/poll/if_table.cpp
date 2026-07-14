@@ -5,7 +5,7 @@
 
 #include "snmp/oid.hpp"
 
-namespace snmpmon {
+namespace wiresprite {
 
 namespace {
 
@@ -111,6 +111,9 @@ DevicePollResult pollIfTable(SnmpClient& client) {
 
     DevicePollResult result;
     auto start = std::chrono::steady_clock::now();
+    result.polledAtUnixSec =
+        std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch())
+            .count();
     try {
         std::vector<VarBind> varbinds = client.walkSubtree(kIfEntryBase);
         result.interfaces = bucketIfTableVarBinds(varbinds);
@@ -132,4 +135,4 @@ DevicePollResult pollIfTable(SnmpClient& client) {
     return result;
 }
 
-} // namespace snmpmon
+} // namespace wiresprite

@@ -10,7 +10,7 @@
 // SNMP message/PDU framing, built on top of the generic ber:: codec.
 // This is the layer that knows about SNMP's context-specific constructed
 // tags (GetRequest, GetResponse, ...) that ber.hpp deliberately doesn't.
-namespace snmpmon {
+namespace wiresprite {
 
 enum class SnmpVersion : int32_t {
     V1 = 0,
@@ -49,4 +49,4 @@ struct SnmpMessage {
     static SnmpMessage decode(const std::string& buf);
 };
 
-} // namespace snmpmon
+} // namespace wiresprite

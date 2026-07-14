@@ -14,7 +14,7 @@
 #include "snmp/pdu.hpp"
 #include "snmp/udp_socket.hpp"
 
-namespace snmpmon::test {
+namespace wiresprite::test {
 
 class FakeAgent {
 public:
@@ -94,4 +94,4 @@ private:
     std::atomic<size_t> requestsServed_{0};
 };
 
-} // namespace snmpmon::test
+} // namespace wiresprite::test

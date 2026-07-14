@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-namespace snmpmon {
+namespace wiresprite {
 
 // A dotted-decimal object identifier, e.g. 1.3.6.1.2.1.2.2.1.10.1.
 // Comparisons follow plain lexicographic ordering of the numeric
@@ -43,4 +43,4 @@ private:
     std::vector<uint32_t> components_;
 };
 
-} // namespace snmpmon
+} // namespace wiresprite

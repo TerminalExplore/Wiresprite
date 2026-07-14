@@ -2,8 +2,8 @@
 #include "snmp/ber.hpp"
 #include "snmp/oid.hpp"
 
-using namespace snmpmon;
-using namespace snmpmon::ber;
+using namespace wiresprite;
+using namespace wiresprite::ber;
 
 namespace {
 

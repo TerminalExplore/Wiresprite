@@ -1,6 +1,6 @@
 #include "http/routes_metrics.hpp"
 
-namespace snmpmon {
+namespace wiresprite {
 
 namespace {
 
@@ -56,25 +56,25 @@ private:
 } // namespace
 
 std::string buildMetricsText(const std::vector<DeviceConfig>& devices, const DeviceStateStore& store) {
-    MetricFamily up("snmpmon_up", "Whether the last poll of this device succeeded (1) or not (0).", "gauge");
-    MetricFamily scrapeDuration("snmpmon_scrape_duration_seconds", "How long the last poll of this device took.",
+    MetricFamily up("wiresprite_up", "Whether the last poll of this device succeeded (1) or not (0).", "gauge");
+    MetricFamily scrapeDuration("wiresprite_scrape_duration_seconds", "How long the last poll of this device took.",
                                  "gauge");
-    MetricFamily uptime("snmpmon_device_uptime_seconds", "Device sysUpTime, in seconds.", "gauge");
-    MetricFamily ifSpeed("snmpmon_if_speed_bps", "Interface speed, in bits per second (ifSpeed).", "gauge");
-    MetricFamily ifAdminStatus("snmpmon_if_admin_status",
+    MetricFamily uptime("wiresprite_device_uptime_seconds", "Device sysUpTime, in seconds.", "gauge");
+    MetricFamily ifSpeed("wiresprite_if_speed_bps", "Interface speed, in bits per second (ifSpeed).", "gauge");
+    MetricFamily ifAdminStatus("wiresprite_if_admin_status",
                                 "Interface admin status per RFC1213 (1=up, 2=down, 3=testing).", "gauge");
-    MetricFamily ifOperStatus("snmpmon_if_oper_status",
+    MetricFamily ifOperStatus("wiresprite_if_oper_status",
                                "Interface operational status per RFC1213 (1=up, 2=down, 3=testing, ...).", "gauge");
-    MetricFamily ifInOctets("snmpmon_if_in_octets_total", "Total octets received on the interface (ifInOctets).",
+    MetricFamily ifInOctets("wiresprite_if_in_octets_total", "Total octets received on the interface (ifInOctets).",
                              "counter");
-    MetricFamily ifOutOctets("snmpmon_if_out_octets_total", "Total octets sent on the interface (ifOutOctets).",
+    MetricFamily ifOutOctets("wiresprite_if_out_octets_total", "Total octets sent on the interface (ifOutOctets).",
                               "counter");
-    MetricFamily ifInErrors("snmpmon_if_in_errors_total", "Total inbound packet errors (ifInErrors).", "counter");
-    MetricFamily ifOutErrors("snmpmon_if_out_errors_total", "Total outbound packet errors (ifOutErrors).",
+    MetricFamily ifInErrors("wiresprite_if_in_errors_total", "Total inbound packet errors (ifInErrors).", "counter");
+    MetricFamily ifOutErrors("wiresprite_if_out_errors_total", "Total outbound packet errors (ifOutErrors).",
                               "counter");
-    MetricFamily ifInDiscards("snmpmon_if_in_discards_total", "Total inbound packets discarded (ifInDiscards).",
+    MetricFamily ifInDiscards("wiresprite_if_in_discards_total", "Total inbound packets discarded (ifInDiscards).",
                                "counter");
-    MetricFamily ifOutDiscards("snmpmon_if_out_discards_total", "Total outbound packets discarded (ifOutDiscards).",
+    MetricFamily ifOutDiscards("wiresprite_if_out_discards_total", "Total outbound packets discarded (ifOutDiscards).",
                                 "counter");
 
     for (const auto& device : devices) {
@@ -115,4 +115,4 @@ std::string buildMetricsText(const std::vector<DeviceConfig>& devices, const Dev
            ifOutDiscards.str();
 }
 
-} // namespace snmpmon
+} // namespace wiresprite

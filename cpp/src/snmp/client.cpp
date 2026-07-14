@@ -5,7 +5,7 @@
 
 #include "snmp/udp_socket.hpp"
 
-namespace snmpmon {
+namespace wiresprite {
 
 namespace {
 
@@ -159,4 +159,4 @@ std::vector<VarBind> SnmpClient::walkSubtree(const Oid& base) {
     return results;
 }
 
-} // namespace snmpmon
+} // namespace wiresprite

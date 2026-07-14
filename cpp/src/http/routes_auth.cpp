@@ -2,7 +2,7 @@
 
 #include "http/web_assets.hpp"
 
-namespace snmpmon {
+namespace wiresprite {
 
 std::optional<std::string> extractSessionCookie(const httplib::Request& req) {
     std::string cookieHeader = req.get_header_value("Cookie");
@@ -82,4 +82,4 @@ void registerAuthRoutes(httplib::Server& svr, SessionAuth& auth) {
     });
 }
 
-} // namespace snmpmon
+} // namespace wiresprite

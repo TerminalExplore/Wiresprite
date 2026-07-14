@@ -6,7 +6,7 @@
 // Thin cross-platform UDP wrapper (Winsock2 on Windows, BSD sockets
 // elsewhere). Knows nothing about SNMP — just resolves a host:port,
 // sends datagrams, and receives with a timeout.
-namespace snmpmon {
+namespace wiresprite {
 
 class UdpSocket {
 public:
@@ -43,4 +43,4 @@ private:
     SocketHandle fd_;
 };
 
-} // namespace snmpmon
+} // namespace wiresprite

@@ -1,7 +1,7 @@
 #include "config/config.hpp"
 #include "doctest.h"
 
-using namespace snmpmon;
+using namespace wiresprite;
 
 TEST_CASE("parseConfig parses a full, valid config") {
     const std::string ini = R"(

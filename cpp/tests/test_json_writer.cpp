@@ -1,7 +1,7 @@
 #include "doctest.h"
 #include "http/json_writer.hpp"
 
-using namespace snmpmon::json;
+using namespace wiresprite::json;
 
 namespace {
 std::string escaped(const std::string& value) {

@@ -5,7 +5,7 @@
 // The dashboard's HTML/CSS/JS, embedded as string constants so the
 // whole app ships as a single binary with no webroot directory to
 // deploy alongside it.
-namespace snmpmon::web {
+namespace wiresprite::web {
 
 extern const char* const kIndexHtml;
 extern const char* const kStyleCss;
@@ -16,4 +16,4 @@ extern const char* const kAppJs;
 // plain constant like the others.
 std::string renderLoginPage(bool showError);
 
-} // namespace snmpmon::web
+} // namespace wiresprite::web

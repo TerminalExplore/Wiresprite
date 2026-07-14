@@ -4,7 +4,7 @@
 #include <fstream>
 #include <sstream>
 
-namespace snmpmon {
+namespace wiresprite {
 
 namespace {
 
@@ -207,4 +207,4 @@ AppConfig loadConfig(const std::string& path) {
     return parseConfig(buffer.str());
 }
 
-} // namespace snmpmon
+} // namespace wiresprite

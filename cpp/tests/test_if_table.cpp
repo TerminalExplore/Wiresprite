@@ -1,7 +1,7 @@
 #include "doctest.h"
 #include "poll/if_table.hpp"
 
-using namespace snmpmon;
+using namespace wiresprite;
 
 namespace {
 Oid col(uint32_t column, uint32_t ifIndex) {

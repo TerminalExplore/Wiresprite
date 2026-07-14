@@ -5,7 +5,7 @@
 
 #include "picosha2.h"
 
-namespace snmpmon {
+namespace wiresprite {
 
 namespace {
 
@@ -100,4 +100,4 @@ void SessionAuth::pruneExpiredLocked() {
     }
 }
 
-} // namespace snmpmon
+} // namespace wiresprite

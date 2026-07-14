@@ -2,7 +2,7 @@
 
 #include <cstddef>
 
-namespace snmpmon::ber {
+namespace wiresprite::ber {
 
 namespace {
 
@@ -371,4 +371,4 @@ Value decode(const std::string& buf, size_t& pos) {
     throw DecodeError("BER decode: unhandled tag 0x" + std::to_string(tlv.tag));
 }
 
-} // namespace snmpmon::ber
+} // namespace wiresprite::ber

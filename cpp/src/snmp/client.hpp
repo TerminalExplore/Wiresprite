@@ -8,7 +8,7 @@
 
 #include "snmp/pdu.hpp"
 
-namespace snmpmon {
+namespace wiresprite {
 
 struct SnmpGetResult {
     int32_t errorStatus = 0;
@@ -65,4 +65,4 @@ private:
     std::uniform_int_distribution<int32_t> requestIdDist_{1, 0x7FFFFFFF};
 };
 
-} // namespace snmpmon
+} // namespace wiresprite
