@@ -29,6 +29,7 @@ add_library(snmpmon_core STATIC
   src/config/config.cpp
   src/http/json_writer.cpp
   src/http/routes_status.cpp
+  src/http/web_assets.cpp
 )
 
 target_include_directories(snmpmon_core PUBLIC
