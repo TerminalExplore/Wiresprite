@@ -24,6 +24,7 @@ add_library(snmpmon_core STATIC
   src/snmp/udp_socket.cpp
   src/snmp/client.cpp
   src/poll/if_table.cpp
+  src/poll/device_state.cpp
   src/config/config.cpp
 )
 
