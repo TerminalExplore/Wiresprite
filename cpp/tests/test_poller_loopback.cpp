@@ -6,14 +6,15 @@
 #include "doctest.h"
 #include "fake_snmp_agent.hpp"
 #include "poll/device_state.hpp"
+#include "poll/history_store.hpp"
 #include "poll/poller.hpp"
 #include "snmp/udp_socket.hpp"
 
 #include <chrono>
 #include <thread>
 
-using namespace snmpmon;
-using namespace snmpmon::test;
+using namespace wiresprite;
+using namespace wiresprite::test;
 
 namespace {
 
@@ -32,6 +33,10 @@ uint16_t grabUnusedPort() {
     UdpSocket probe;
     probe.bind(0);
     return probe.localPort();
+}
+
+Oid col(uint32_t column, uint32_t ifIndex) {
+    return Oid::parse("1.3.6.1.2.1.2.2.1").withSuffix({column, ifIndex});
 }
 
 } // namespace
@@ -57,7 +62,8 @@ TEST_CASE("Poller polls devices concurrently, bounded by the slowest one") {
     };
 
     DeviceStateStore store;
-    Poller poller(devices, polling, store);
+    HistoryStore history;
+    Poller poller(devices, polling, store, history);
 
     auto start = std::chrono::steady_clock::now();
     poller.start();
@@ -100,7 +106,8 @@ TEST_CASE("Poller re-polls on the configured interval, not just once") {
     std::vector<DeviceConfig> devices = {makeDevice("dev", agent.port())};
 
     DeviceStateStore store;
-    Poller poller(devices, polling, store);
+    HistoryStore history;
+    Poller poller(devices, polling, store, history);
     poller.start();
 
     std::this_thread::sleep_for(std::chrono::milliseconds(2600));
@@ -114,9 +121,56 @@ TEST_CASE("Poller re-polls on the configured interval, not just once") {
     CHECK(agent.requestsServed() >= 4);
 }
 
+TEST_CASE("Poller feeds HistoryStore a rate sample once it has two polls to diff") {
+    std::vector<std::pair<Oid, ber::Value>> table = {
+        {col(2, 1), ber::Value::octetString("eth0")},
+        {col(10, 1), ber::Value::counter32(1000)},
+        {col(16, 1), ber::Value::counter32(500)},
+    };
+    FakeAgent agent(std::move(table));
+    std::thread agentThread([&] { agent.serveUntilIdle(3000); });
+
+    PollingConfig polling;
+    polling.intervalSeconds = 1;
+    polling.timeoutMs = 500;
+    polling.retries = 0;
+    polling.maxConcurrentDevices = 1;
+
+    std::vector<DeviceConfig> devices = {makeDevice("dev", agent.port())};
+
+    DeviceStateStore store;
+    HistoryStore history;
+    Poller poller(devices, polling, store, history);
+    poller.start();
+
+    // Needs at least two completed polls of the same interface before
+    // there's anything to diff; wait for a second sample to actually
+    // land rather than a fixed sleep, to avoid flaking on a slow CI box.
+    std::vector<HistoryPoint> points;
+    for (int i = 0; i < 200; ++i) {
+        points = history.get("dev", 1);
+        if (!points.empty()) {
+            break;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    }
+
+    poller.stop();
+    agentThread.join();
+
+    REQUIRE_FALSE(points.empty());
+    // The fake agent's counters never change between polls, so the rate
+    // is legitimately zero — this confirms the Poller -> HistoryStore
+    // wiring runs end to end, not that traffic is flowing.
+    CHECK(points.back().inBitsPerSec == 0.0);
+    CHECK(points.back().outBitsPerSec == 0.0);
+    CHECK(points.back().unixTimeSec > 0);
+}
+
 TEST_CASE("Poller::stop is safe to call without start, and idempotently") {
     DeviceStateStore store;
-    Poller poller({}, PollingConfig{}, store);
+    HistoryStore history;
+    Poller poller({}, PollingConfig{}, store, history);
     poller.stop();
     poller.stop();
 }

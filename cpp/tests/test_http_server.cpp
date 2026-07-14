@@ -6,8 +6,9 @@
 #include "http/server.hpp"
 #include "httplib.h"
 #include "poll/device_state.hpp"
+#include "poll/history_store.hpp"
 
-using namespace snmpmon;
+using namespace wiresprite;
 
 namespace {
 
@@ -27,15 +28,16 @@ DeviceConfig makeDevice(std::string id, std::string host) {
 TEST_CASE("HttpServer serves the dashboard, static assets, and /api/status") {
     HttpConfig httpConfig;
     httpConfig.listenAddress = "127.0.0.1";
-    httpConfig.listenPort = 0; // OS-assigned, avoids clashing with a real snmpmon instance
+    httpConfig.listenPort = 0; // OS-assigned, avoids clashing with a real wiresprite instance
 
     DeviceStateStore store;
+    HistoryStore history;
     DevicePollResult result;
     result.reachable = true;
     result.interfaces.push_back(IfEntry{1, "eth0", 6, 1000000000, 1, 1, 10, 20, 0, 0, 0, 0});
     store.update("dev1", result);
 
-    HttpServer server(httpConfig, AuthConfig{}, {makeDevice("dev1", "10.0.0.1")}, store);
+    HttpServer server(httpConfig, AuthConfig{}, {makeDevice("dev1", "10.0.0.1")}, store, history);
     server.start();
 
     httplib::Client client("127.0.0.1", server.boundPort());
@@ -47,7 +49,7 @@ TEST_CASE("HttpServer serves the dashboard, static assets, and /api/status") {
         REQUIRE(res != nullptr);
         CHECK(res->status == 200);
         CHECK(res->get_header_value("Content-Type").find("text/html") != std::string::npos);
-        CHECK(res->body.find("<title>snmpmon</title>") != std::string::npos);
+        CHECK(res->body.find("<title>Wiresprite</title>") != std::string::npos);
         CHECK(res->body.find("/app.js") != std::string::npos);
     }
 
@@ -77,7 +79,7 @@ TEST_CASE("HttpServer serves the dashboard, static assets, and /api/status") {
                             "\"interfaces\":[{\"ifIndex\":1,\"ifDescr\":\"eth0\",\"ifType\":6,"
                             "\"ifSpeed\":1000000000,\"ifAdminStatus\":1,\"ifOperStatus\":1,"
                             "\"ifInOctets\":10,\"ifOutOctets\":20,\"ifInErrors\":0,\"ifOutErrors\":0,"
-                            "\"ifInDiscards\":0,\"ifOutDiscards\":0}]}]}");
+                            "\"ifInDiscards\":0,\"ifOutDiscards\":0,\"history\":[]}]}]}");
     }
 
     SUBCASE("GET /metrics returns Prometheus text exposition format") {
@@ -85,9 +87,9 @@ TEST_CASE("HttpServer serves the dashboard, static assets, and /api/status") {
         REQUIRE(res != nullptr);
         CHECK(res->status == 200);
         CHECK(res->get_header_value("Content-Type").find("text/plain") != std::string::npos);
-        CHECK(res->body.find("# TYPE snmpmon_up gauge") != std::string::npos);
-        CHECK(res->body.find("snmpmon_up{device=\"dev1\",device_ip=\"10.0.0.1\"} 1") != std::string::npos);
-        CHECK(res->body.find("snmpmon_if_in_octets_total{device=\"dev1\",device_ip=\"10.0.0.1\","
+        CHECK(res->body.find("# TYPE wiresprite_up gauge") != std::string::npos);
+        CHECK(res->body.find("wiresprite_up{device=\"dev1\",device_ip=\"10.0.0.1\"} 1") != std::string::npos);
+        CHECK(res->body.find("wiresprite_if_in_octets_total{device=\"dev1\",device_ip=\"10.0.0.1\","
                               "ifindex=\"1\",ifdescr=\"eth0\"} 10") != std::string::npos);
     }
 
@@ -116,7 +118,8 @@ TEST_CASE("HttpServer::stop is safe without start, and idempotently") {
     HttpConfig httpConfig;
     httpConfig.listenPort = 0;
     DeviceStateStore store;
-    HttpServer server(httpConfig, AuthConfig{}, {}, store);
+    HistoryStore history;
+    HttpServer server(httpConfig, AuthConfig{}, {}, store, history);
     server.stop();
     server.stop();
 }
@@ -132,11 +135,12 @@ TEST_CASE("HttpServer enforces session auth when configured") {
     authConfig.sessionTtlMinutes = 60;
 
     DeviceStateStore store;
+    HistoryStore history;
     DevicePollResult result;
     result.reachable = true;
     store.update("dev1", result);
 
-    HttpServer server(httpConfig, authConfig, {makeDevice("dev1", "10.0.0.1")}, store);
+    HttpServer server(httpConfig, authConfig, {makeDevice("dev1", "10.0.0.1")}, store, history);
     server.start();
 
     httplib::Client client("127.0.0.1", server.boundPort());
