@@ -30,10 +30,14 @@ add_library(snmpmon_core STATIC
   src/http/json_writer.cpp
   src/http/routes_status.cpp
   src/http/web_assets.cpp
+  src/http/server.cpp
 )
 
-target_include_directories(snmpmon_core PUBLIC
-  src
+target_include_directories(snmpmon_core PUBLIC src)
+# SYSTEM: these are vendored headers we don't control; suppress their
+# warnings under our own -Wall/-Wextra/-W4 rather than treating a
+# third-party library's unused-parameter etc. as something to fix here.
+target_include_directories(snmpmon_core SYSTEM PUBLIC
   third_party/httplib
   third_party/sha256
 )
