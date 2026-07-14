@@ -25,6 +25,7 @@ add_library(snmpmon_core STATIC
   src/snmp/client.cpp
   src/poll/if_table.cpp
   src/poll/device_state.cpp
+  src/poll/poller.cpp
   src/config/config.cpp
 )
 

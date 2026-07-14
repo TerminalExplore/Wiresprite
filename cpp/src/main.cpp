@@ -1,37 +1,32 @@
+#include <atomic>
+#include <chrono>
+#include <csignal>
 #include <iostream>
 #include <string>
+#include <thread>
 
 #include "config/config.hpp"
-#include "poll/if_table.hpp"
-#include "snmp/client.hpp"
+#include "poll/device_state.hpp"
+#include "poll/poller.hpp"
 
 namespace {
 
-std::string statusLabel(int32_t status) {
-    switch (status) {
-        case 1:
-            return "up";
-        case 2:
-            return "down";
-        case 3:
-            return "testing";
-        default:
-            return "unknown(" + std::to_string(status) + ")";
-    }
-}
+std::atomic<bool> gShutdownRequested{false};
 
-void printDevice(const snmpmon::DeviceConfig& device) {
-    std::cout << "== " << device.displayName << " (" << device.host << ") ==\n";
+void handleShutdownSignal(int) {
+    // Signal-safe: only sets a flag. The actual poller.stop()/join()
+    // happens back on the normal main-thread control flow below.
+    gShutdownRequested.store(true);
 }
 
 } // namespace
 
-// Phase 3: config-driven multi-device poll. Loads an INI config listing
-// one or more SNMP devices, walks each one's ifTable, and prints a
-// summary. The background poller/HTTP dashboard that will actually
-// consume this on a schedule land in Phases 4-5; this is the CLI
-// checkpoint that proves walkSubtree + config parsing work together
-// against more than one device.
+// Phase 4: config-driven continuous monitor. Loads the INI config,
+// starts a background Poller that walks every device's ifTable on
+// PollingConfig::intervalSeconds cadence, and runs until Ctrl+C
+// (SIGINT) or SIGTERM, then shuts the poller down cleanly. The HTTP
+// dashboard that will actually read DeviceStateStore lands in Phase 5;
+// this is the headless checkpoint proving the poller itself works.
 int main(int argc, char** argv) {
     std::string configPath = argc > 1 ? argv[1] : "snmpmon.ini";
 
@@ -49,30 +44,21 @@ int main(int argc, char** argv) {
         return 2;
     }
 
-    int unreachableCount = 0;
-    for (const auto& device : config.devices) {
-        printDevice(device);
+    std::signal(SIGINT, handleShutdownSignal);
+    std::signal(SIGTERM, handleShutdownSignal);
 
-        snmpmon::SnmpClient client(device.host, device.port, device.community, device.version);
-        client.setTimeoutMs(config.polling.timeoutMs);
-        client.setRetries(config.polling.retries);
+    snmpmon::DeviceStateStore store;
+    snmpmon::Poller poller(config.devices, config.polling, store);
+    poller.start();
 
-        snmpmon::DevicePollResult result = snmpmon::pollIfTable(client);
-        if (!result.reachable) {
-            std::cout << "  UNREACHABLE: " << result.error << "\n\n";
-            ++unreachableCount;
-            continue;
-        }
+    std::cout << "snmpmon: polling " << config.devices.size() << " device(s) every "
+              << config.polling.intervalSeconds << "s (Ctrl+C to stop)\n";
 
-        std::cout << "  sysUpTime: " << result.sysUpTimeTicks << " ticks\n";
-        for (const auto& iface : result.interfaces) {
-            std::cout << "  [" << iface.ifIndex << "] " << iface.ifDescr << ": oper=" << statusLabel(iface.ifOperStatus)
-                      << " admin=" << statusLabel(iface.ifAdminStatus) << " speed=" << iface.ifSpeed << "bps"
-                      << " in=" << iface.ifInOctets << "B out=" << iface.ifOutOctets << "B"
-                      << " inErr=" << iface.ifInErrors << " outErr=" << iface.ifOutErrors << "\n";
-        }
-        std::cout << "\n";
+    while (!gShutdownRequested.load()) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
     }
 
-    return unreachableCount == static_cast<int>(config.devices.size()) ? 1 : 0;
+    std::cout << "snmpmon: shutting down...\n";
+    poller.stop();
+    return 0;
 }
