@@ -26,6 +26,13 @@ cp config/wiresprite.ini.example wiresprite.ini   # edit with your device(s)
 
 Then open `http://localhost:8080` in a browser.
 
+### Pre-built binaries and running as a service
+
+Tagged releases (`v*`) are built and published automatically — see the
+[Releases](https://github.com/TerminalExploit/SNMP-Monitor/releases) page for
+ready-to-run Windows/Linux binaries, no compiler needed. For running unattended on
+Linux, see [`packaging/`](packaging/) for a systemd service template.
+
 ### Compatibility with other devices
 
 This project is not limited to the HP ProCurve 2512. It works with any network device

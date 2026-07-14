@@ -1,0 +1,80 @@
+name: Release
+
+# Builds Windows + Linux binaries and publishes them to a GitHub Release
+# whenever a version tag is pushed. Separate from ci.yml (which runs on
+# every push/PR and never publishes anything) so tagging a release stays
+# a deliberate, explicit action.
+on:
+  push:
+    tags:
+      - "v*"
+
+defaults:
+  run:
+    working-directory: cpp
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            preset: windows-msvc-release
+            built_path: build/windows-msvc-release/Release/wiresprite.exe
+            asset_name: wiresprite-windows-x64.exe
+          - os: ubuntu-latest
+            preset: linux-gcc-release
+            built_path: build/linux-gcc-release/wiresprite
+            asset_name: wiresprite-linux-x64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Ninja (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y ninja-build
+
+      - name: Configure
+        run: cmake --preset ${{ matrix.preset }}
+
+      - name: Build
+        run: cmake --build --preset ${{ matrix.preset }}
+
+      - name: Stage release bundle
+        shell: bash
+        run: |
+          mkdir -p dist
+          cp "${{ matrix.built_path }}" "dist/${{ matrix.asset_name }}"
+          cp config/wiresprite.ini.example dist/
+          cp ../README.md dist/
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset_name }}
+          path: cpp/dist
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Zip each platform's bundle
+        run: |
+          cd artifacts
+          for dir in */; do
+            name="${dir%/}"
+            (cd "$name" && zip -r "../${name}.zip" .)
+          done
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*.zip
+          generate_release_notes: true
