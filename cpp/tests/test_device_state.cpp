@@ -14,7 +14,7 @@ TEST_CASE("DeviceStateStore::update then get round-trips the result") {
     DevicePollResult result;
     result.reachable = true;
     result.sysUpTimeTicks = 12345;
-    result.interfaces.push_back(IfEntry{1, "eth0", 6, 1000000000, 1, 1, 100, 50, 0, 0, 0, 0});
+    result.interfaces.push_back(IfEntry{1, "eth0", "", 6, 1000000000, 1, 1, 100, 50, 0, 0, 0, 0});
 
     store.update("core-switch", result);
 

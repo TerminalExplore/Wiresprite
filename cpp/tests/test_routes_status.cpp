@@ -45,14 +45,14 @@ TEST_CASE("buildStatusJson: reachable device with interfaces, no history yet") {
     DevicePollResult result;
     result.reachable = true;
     result.sysUpTimeTicks = 12345;
-    result.interfaces.push_back(IfEntry{1, "eth0", 6, 100000000, 1, 1, 1000, 500, 0, 0, 0, 0});
+    result.interfaces.push_back(IfEntry{1, "eth0", "", 6, 100000000, 1, 1, 1000, 500, 0, 0, 0, 0});
     store.update("dev1", result);
 
     std::string expected =
         "{\"devices\":["
         "{\"id\":\"dev1\",\"displayName\":\"Device One\",\"host\":\"10.0.0.1\","
         "\"reachable\":true,\"error\":\"\",\"sysUpTimeTicks\":12345,"
-        "\"interfaces\":[{\"ifIndex\":1,\"ifDescr\":\"eth0\",\"ifType\":6,\"ifSpeed\":100000000,"
+        "\"interfaces\":[{\"ifIndex\":1,\"ifDescr\":\"eth0\",\"ifAlias\":\"\",\"ifType\":6,\"ifSpeed\":100000000,"
         "\"ifAdminStatus\":1,\"ifOperStatus\":1,\"ifInOctets\":1000,\"ifOutOctets\":500,"
         "\"ifInErrors\":0,\"ifOutErrors\":0,\"ifInDiscards\":0,\"ifOutDiscards\":0,\"history\":[]}]}"
         "]}";
@@ -67,13 +67,13 @@ TEST_CASE("buildStatusJson: interface history reflects HistoryStore samples") {
     DevicePollResult first;
     first.reachable = true;
     first.polledAtUnixSec = 1000;
-    first.interfaces.push_back(IfEntry{1, "eth0", 6, 100000000, 1, 1, 1000, 500, 0, 0, 0, 0});
+    first.interfaces.push_back(IfEntry{1, "eth0", "", 6, 100000000, 1, 1, 1000, 500, 0, 0, 0, 0});
 
     DevicePollResult second;
     second.reachable = true;
     second.polledAtUnixSec = 1010; // 10s later
     // +1000 bytes in / +500 bytes out over 10s -> 800 bps in, 400 bps out.
-    second.interfaces.push_back(IfEntry{1, "eth0", 6, 100000000, 1, 1, 2000, 1000, 0, 0, 0, 0});
+    second.interfaces.push_back(IfEntry{1, "eth0", "", 6, 100000000, 1, 1, 2000, 1000, 0, 0, 0, 0});
 
     history.record("dev1", &first, second);
     store.update("dev1", second);

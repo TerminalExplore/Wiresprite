@@ -105,8 +105,30 @@ std::vector<IfEntry> bucketIfTableVarBinds(const std::vector<VarBind>& varbinds)
     return result;
 }
 
+void mergeIfAlias(std::vector<IfEntry>& entries, const std::vector<VarBind>& ifAliasVarbinds) {
+    static const Oid kIfAlias = Oid::parse("1.3.6.1.2.1.31.1.1.1.18");
+    const size_t baseSize = kIfAlias.size();
+
+    std::map<uint32_t, std::string> aliasByIndex;
+    for (const auto& vb : ifAliasVarbinds) {
+        const auto& comps = vb.name.components();
+        if (comps.size() != baseSize + 1) {
+            continue; // not a plain scalar-per-row cell; ignore defensively
+        }
+        aliasByIndex[comps[baseSize]] = asStringOrEmpty(vb.value);
+    }
+
+    for (IfEntry& entry : entries) {
+        auto it = aliasByIndex.find(entry.ifIndex);
+        if (it != aliasByIndex.end()) {
+            entry.ifAlias = it->second;
+        }
+    }
+}
+
 DevicePollResult pollIfTable(SnmpClient& client) {
     static const Oid kIfEntryBase = Oid::parse("1.3.6.1.2.1.2.2.1");
+    static const Oid kIfAlias = Oid::parse("1.3.6.1.2.1.31.1.1.1.18");
     static const Oid kSysUpTime = Oid::parse("1.3.6.1.2.1.1.3.0");
 
     DevicePollResult result;
@@ -117,6 +139,16 @@ DevicePollResult pollIfTable(SnmpClient& client) {
     try {
         std::vector<VarBind> varbinds = client.walkSubtree(kIfEntryBase);
         result.interfaces = bucketIfTableVarBinds(varbinds);
+
+        // Best-effort: ifXTable is an RFC2863 extension, not every agent
+        // implements it. A failed/empty walk just leaves ifAlias blank
+        // rather than failing the whole poll.
+        try {
+            std::vector<VarBind> aliasVarbinds = client.walkSubtree(kIfAlias);
+            mergeIfAlias(result.interfaces, aliasVarbinds);
+        } catch (const SnmpTimeoutError&) {
+            // ifXTable unsupported or unreachable; leave ifAlias empty.
+        }
 
         SnmpGetResult uptime = client.get({kSysUpTime});
         if (uptime.errorStatus == 0 && !uptime.varBinds.empty() &&

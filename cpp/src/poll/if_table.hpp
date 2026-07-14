@@ -16,6 +16,7 @@ namespace wiresprite {
 struct IfEntry {
     uint32_t ifIndex = 0;
     std::string ifDescr;
+    std::string ifAlias; // RFC2863 ifXTable admin-assigned name; empty if unset/unsupported
     int32_t ifType = 0;
     uint32_t ifSpeed = 0;
     int32_t ifAdminStatus = 0; // RFC1213: 1=up, 2=down, 3=testing
@@ -47,10 +48,18 @@ struct DevicePollResult {
 // a network round trip.
 std::vector<IfEntry> bucketIfTableVarBinds(const std::vector<VarBind>& varbinds);
 
-// Walks ifTable and fetches sysUpTime.0 for one device. Never throws:
-// network/protocol failures come back as DevicePollResult::reachable
-// == false with `error` set, so one unreachable device can't abort a
-// polling cycle covering several (see Phase 4's poller).
+// Sets ifAlias on each matching entry (by trailing ifIndex) from a WALK
+// over ifXTable's ifAlias column (1.3.6.1.2.1.31.1.1.1.18). ifXTable is
+// an RFC2863 extension, not universally implemented; entries with no
+// matching varbind are left with an empty ifAlias rather than treated
+// as an error.
+void mergeIfAlias(std::vector<IfEntry>& entries, const std::vector<VarBind>& ifAliasVarbinds);
+
+// Walks ifTable (plus ifXTable for ifAlias) and fetches sysUpTime.0 for
+// one device. Never throws: network/protocol failures come back as
+// DevicePollResult::reachable == false with `error` set, so one
+// unreachable device can't abort a polling cycle covering several (see
+// Phase 4's poller).
 DevicePollResult pollIfTable(SnmpClient& client);
 
 } // namespace wiresprite
