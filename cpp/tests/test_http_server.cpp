@@ -79,6 +79,10 @@ TEST_CASE("HttpServer serves the dashboard, static assets, and /api/status") {
         CHECK(res->get_header_value("Content-Type").find("text/html") != std::string::npos);
         CHECK(res->body.find("<title>Wiresprite</title>") != std::string::npos);
         CHECK(res->body.find("/app.js") != std::string::npos);
+        // Logging out is meaningless with auth disabled (POST /logout ->
+        // GET /login just bounces straight back to / since isAuthorized()
+        // is always true) — the button shouldn't be there to click.
+        CHECK(res->body.find("Log out") == std::string::npos);
     }
 
     SUBCASE("GET /style.css returns CSS") {
@@ -243,6 +247,7 @@ TEST_CASE("HttpServer enforces session auth when configured") {
         auto dashboard = client.Get("/", authedHeaders);
         REQUIRE(dashboard != nullptr);
         CHECK(dashboard->status == 200);
+        CHECK(dashboard->body.find("Log out") != std::string::npos);
 
         auto status = client.Get("/api/status", authedHeaders);
         REQUIRE(status != nullptr);

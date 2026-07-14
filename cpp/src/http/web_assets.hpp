@@ -7,7 +7,11 @@
 // deploy alongside it.
 namespace wiresprite::web {
 
-extern const char* const kIndexHtml;
+// The dashboard shell. Takes whether session auth is enabled so the
+// "Log out" button isn't shown when there's nothing to log out of
+// (logging out with auth disabled used to just bounce you straight
+// back from /login to / — see server.cpp's / handler).
+std::string renderIndexPage(bool authEnabled);
 extern const char* const kStyleCss;
 extern const char* const kAppJs;
 extern const char* const kFaviconSvg; // same spiderweb mark as the header's inline logo
