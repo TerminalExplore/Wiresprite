@@ -18,6 +18,17 @@ namespace wiresprite::web {
     "<polygon points=\"12,5.5 17.63,8.75 17.63,15.25 12,18.5 6.37,15.25 6.37,8.75\"/>"                               \
     "</svg>"
 
+// Applies a previously chosen light/dark preference (see the toggle
+// button in kAppJs/kSettingsJs) before first paint, so there's no
+// flash of the wrong theme. Absent a stored choice, this is a no-op
+// and the OS's prefers-color-scheme keeps driving the theme exactly
+// as before this feature existed. Every page includes this, not just
+// the dashboard — a toggle that only "stuck" on one page would be
+// worse than not having one.
+#define THEME_INIT_SCRIPT                                                                                            \
+    "<script>(function(){var t=localStorage.getItem(\"wiresprite-theme\");"                                         \
+    "if(t===\"light\"||t===\"dark\"){document.documentElement.setAttribute(\"data-theme\",t);}})();</script>"
+
 // Same spiderweb mark as the header's inline logo, as a standalone SVG
 // document for the browser tab's favicon. Favicons render outside any
 // surrounding text color context, so this can't rely on currentColor
@@ -57,6 +68,7 @@ std::string renderIndexPage(bool authEnabled) {
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Wiresprite</title>
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+)HTML" THEME_INIT_SCRIPT R"HTML(
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
@@ -64,6 +76,13 @@ std::string renderIndexPage(bool authEnabled) {
   <h1>)HTML" WIRESPRITE_LOGO_SVG R"HTML( Wiresprite</h1>
   <span id="last-updated">loading&hellip;</span>
   <div class="header-actions">
+    <button type="button" id="theme-toggle" class="header-button" aria-label="Toggle light/dark theme"></button>
+    <button type="button" id="kiosk-toggle" class="header-button" aria-label="Kiosk / wallboard mode">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6"
+           stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 9V4h5"/><path d="M20 9V4h-5"/><path d="M4 15v5h5"/><path d="M20 15v5h-5"/>
+      </svg>
+    </button>
     <button type="button" id="export-csv" class="header-button">Export CSV</button>)HTML") +
            logoutForm + R"HTML(
   </div>
@@ -149,6 +168,54 @@ const char* const kStyleCss = R"CSS(:root {
     --accent: #3987e5;
     --accent-hover: #5598e7;
   }
+}
+
+/* Manual theme toggle: an attribute selector on :root has higher
+   specificity than the plain :root/media-query rules above, so these
+   win whenever data-theme is actually set (by the head script or the
+   toggle button in kAppJs/kSettingsJs) — and since attribute selectors
+   simply don't match when the attribute is absent, the OS-driven
+   media query above still governs until the user toggles once. */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --page: #f9f9f7;
+  --surface: #fcfcfb;
+  --ink: #0b0b0b;
+  --ink-secondary: #52514e;
+  --ink-muted: #898781;
+  --gridline: #e1e0d9;
+  --border: rgba(11, 11, 11, 0.10);
+  --series-in: #2a78d6;
+  --series-out: #1baf7a;
+  --status-good: #0ca30c;
+  --status-warning: #fab219;
+  --status-critical: #d03b3b;
+  --status-good-wash: rgba(12, 163, 12, 0.12);
+  --status-warning-wash: rgba(250, 178, 25, 0.16);
+  --status-critical-wash: rgba(208, 59, 59, 0.12);
+  --accent: #2a78d6;
+  --accent-hover: #1c5cab;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d;
+  --surface: #1a1a19;
+  --ink: #ffffff;
+  --ink-secondary: #c3c2b7;
+  --ink-muted: #898781;
+  --gridline: #2c2c2a;
+  --border: rgba(255, 255, 255, 0.10);
+  --series-in: #3987e5;
+  --series-out: #199e70;
+  --status-good: #0ca30c;
+  --status-warning: #fab219;
+  --status-critical: #d03b3b;
+  --status-good-wash: rgba(12, 163, 12, 0.18);
+  --status-warning-wash: rgba(250, 178, 25, 0.20);
+  --status-critical-wash: rgba(208, 59, 59, 0.20);
+  --accent: #3987e5;
+  --accent-hover: #5598e7;
 }
 
 * {
@@ -530,6 +597,15 @@ main {
 
 .header-button:hover {
   background: color-mix(in srgb, var(--ink) 8%, transparent);
+}
+
+/* Wallboard mode: hide chrome that's pointless on a wallboard (nav,
+   the port filter, header buttons) but keep #summary/#alert-banner —
+   "what's wrong right now" is exactly what a wallboard should show. */
+body.kiosk-mode .navbar,
+body.kiosk-mode .filter-bar,
+body.kiosk-mode .header-actions {
+  display: none;
 }
 
 .summary-grid {
@@ -1647,6 +1723,150 @@ document.getElementById("port-filter").addEventListener("click", (evt) => {
 
 document.getElementById("export-csv").addEventListener("click", exportCsv);
 
+// ---- Manual light/dark toggle. THEME_INIT_SCRIPT (web_assets.cpp)
+// already applied any stored choice before this script ever runs, so
+// this only needs to read that back and handle clicks — never touches
+// the CSS values themselves (see the :root[data-theme] blocks).
+const SUN_ICON =
+  '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" ' +
+  'stroke-linecap="round"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="5"/>' +
+  '<line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/>' +
+  '<line x1="19" y1="12" x2="22" y2="12"/><line x1="4.6" y1="4.6" x2="6.7" y2="6.7"/>' +
+  '<line x1="17.3" y1="17.3" x2="19.4" y2="19.4"/><line x1="4.6" y1="19.4" x2="6.7" y2="17.3"/>' +
+  '<line x1="17.3" y1="6.7" x2="19.4" y2="4.6"/></svg>';
+const MOON_ICON =
+  '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" ' +
+  'stroke-linecap="round" stroke-linejoin="round">' +
+  '<path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg>';
+
+function currentTheme() {
+  const attr = document.documentElement.getAttribute("data-theme");
+  if (attr === "light" || attr === "dark") return attr;
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
+function applyThemeIcon() {
+  // Shows the icon for the theme a click will switch *to*, not the
+  // current one — a moon while light (click for dark), a sun while dark.
+  document.getElementById("theme-toggle").innerHTML = currentTheme() === "dark" ? SUN_ICON : MOON_ICON;
+}
+
+function setTheme(theme) {
+  document.documentElement.setAttribute("data-theme", theme);
+  localStorage.setItem("wiresprite-theme", theme);
+  applyThemeIcon();
+}
+
+document.getElementById("theme-toggle").addEventListener("click", () => {
+  setTheme(currentTheme() === "dark" ? "light" : "dark");
+});
+applyThemeIcon();
+
+// ---- Kiosk / wallboard mode: real browser fullscreen (not a CSS-only
+// maximize), forces the port filter to "all" so nothing is hidden, and
+// slowly auto-scrolls top<->bottom when there's more content than fits
+// on one screen. fullscreenchange — not the click handler — owns
+// entering/exiting state, since Escape fires that event too and should
+// clean up exactly the same way as clicking the button again.
+let kioskPreviousFilter = "all";
+let kioskWasOnOverview = false;
+let kioskScrollTimer = null;
+let kioskScrollDirection = 1;
+
+function kioskTick() {
+  const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+  if (maxScroll <= 0) return; // everything already fits on one screen
+  const next = window.scrollY + kioskScrollDirection;
+  if (kioskScrollDirection > 0 && next >= maxScroll) {
+    window.scrollTo({ top: maxScroll });
+    kioskScrollDirection = -1;
+    clearInterval(kioskScrollTimer);
+    setTimeout(() => {
+      kioskScrollTimer = setInterval(kioskTick, 50);
+    }, 3000);
+    return;
+  }
+  if (kioskScrollDirection < 0 && next <= 0) {
+    window.scrollTo({ top: 0 });
+    kioskScrollDirection = 1;
+    clearInterval(kioskScrollTimer);
+    setTimeout(() => {
+      kioskScrollTimer = setInterval(kioskTick, 50);
+    }, 3000);
+    return;
+  }
+  window.scrollTo({ top: next });
+}
+
+function stopKioskScroll() {
+  if (kioskScrollTimer) {
+    clearInterval(kioskScrollTimer);
+    kioskScrollTimer = null;
+  }
+}
+
+function startKioskScroll() {
+  stopKioskScroll();
+  kioskScrollDirection = 1;
+  kioskScrollTimer = setInterval(kioskTick, 50);
+}
+
+function showNavPage(pageName) {
+  document.querySelectorAll(".nav-btn").forEach((b) => b.classList.toggle("active", b.dataset.page === pageName));
+  document.querySelectorAll(".page").forEach((p) => p.classList.toggle("active", p.id === "page-" + pageName));
+}
+
+function enterKiosk() {
+  document.body.classList.add("kiosk-mode");
+  kioskPreviousFilter = currentFilter;
+  kioskWasOnOverview = document.getElementById("page-overview").classList.contains("active");
+
+  currentFilter = "all";
+  document
+    .querySelectorAll("#port-filter .segmented-btn")
+    .forEach((el) => el.classList.toggle("active", el.dataset.filter === "all"));
+  showNavPage("ports");
+  applyFilter();
+
+  window.scrollTo({ top: 0 });
+  startKioskScroll();
+}
+
+function exitKiosk() {
+  document.body.classList.remove("kiosk-mode");
+  stopKioskScroll();
+
+  currentFilter = kioskPreviousFilter;
+  document
+    .querySelectorAll("#port-filter .segmented-btn")
+    .forEach((el) => el.classList.toggle("active", el.dataset.filter === currentFilter));
+  applyFilter();
+  if (kioskWasOnOverview) {
+    showNavPage("overview");
+  }
+
+  window.scrollTo({ top: 0 });
+}
+
+document.getElementById("kiosk-toggle").addEventListener("click", () => {
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen().catch(() => {
+      // Fullscreen can be denied (permissions policy, embedded iframe,
+      // ...) — nothing useful to do beyond not crashing.
+    });
+  } else {
+    document.exitFullscreen();
+  }
+});
+
+document.addEventListener("fullscreenchange", () => {
+  if (document.fullscreenElement) {
+    enterKiosk();
+  } else {
+    exitKiosk();
+  }
+});
+
 const events = new EventSource("/api/events");
 events.onmessage = (evt) => {
   try {
@@ -1670,6 +1890,7 @@ std::string renderLoginPage(bool showError) {
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Wiresprite &mdash; sign in</title>
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+)HTML" THEME_INIT_SCRIPT R"HTML(
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
@@ -1831,6 +2052,42 @@ document.getElementById("settings-form").addEventListener("submit", async (evt) 
   }
 });
 
+// ---- Manual light/dark toggle — same mechanism as the dashboard's
+// (kAppJs); duplicated rather than shared since this page's script is
+// already self-contained and it's only ~15 lines.
+const SUN_ICON =
+  '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" ' +
+  'stroke-linecap="round"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="5"/>' +
+  '<line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/>' +
+  '<line x1="19" y1="12" x2="22" y2="12"/><line x1="4.6" y1="4.6" x2="6.7" y2="6.7"/>' +
+  '<line x1="17.3" y1="17.3" x2="19.4" y2="19.4"/><line x1="4.6" y1="19.4" x2="6.7" y2="17.3"/>' +
+  '<line x1="17.3" y1="6.7" x2="19.4" y2="4.6"/></svg>';
+const MOON_ICON =
+  '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" ' +
+  'stroke-linecap="round" stroke-linejoin="round">' +
+  '<path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg>';
+
+function currentTheme() {
+  const attr = document.documentElement.getAttribute("data-theme");
+  if (attr === "light" || attr === "dark") return attr;
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
+function applyThemeIcon() {
+  document.getElementById("theme-toggle").innerHTML = currentTheme() === "dark" ? SUN_ICON : MOON_ICON;
+}
+
+function setTheme(theme) {
+  document.documentElement.setAttribute("data-theme", theme);
+  localStorage.setItem("wiresprite-theme", theme);
+  applyThemeIcon();
+}
+
+document.getElementById("theme-toggle").addEventListener("click", () => {
+  setTheme(currentTheme() === "dark" ? "light" : "dark");
+});
+applyThemeIcon();
+
 loadSettings();
 )JS";
 
@@ -1850,12 +2107,14 @@ std::string renderSettingsPage(bool isFirstRun) {
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Wiresprite &mdash; settings</title>
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+)HTML" THEME_INIT_SCRIPT R"HTML(
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
 <header>
   <h1>)HTML" WIRESPRITE_LOGO_SVG R"HTML( Wiresprite</h1>
   <div class="header-actions">
+    <button type="button" id="theme-toggle" class="header-button" aria-label="Toggle light/dark theme"></button>
     <a href="/" class="header-button">Back to dashboard</a>
   </div>
 </header>)HTML") +
@@ -1912,5 +2171,6 @@ std::string renderSettingsPage(bool isFirstRun) {
 }
 
 #undef WIRESPRITE_LOGO_SVG
+#undef THEME_INIT_SCRIPT
 
 } // namespace wiresprite::web
