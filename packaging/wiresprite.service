@@ -1,0 +1,26 @@
+[Unit]
+Description=Wiresprite SNMP switch monitor
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/opt/wiresprite/wiresprite /opt/wiresprite/wiresprite.ini
+WorkingDirectory=/opt/wiresprite
+Restart=on-failure
+RestartSec=5
+User=wiresprite
+Group=wiresprite
+
+# Wiresprite never writes to disk itself (no logs, no persisted state —
+# history lives in memory only, see cpp/README.md), so it needs no
+# write access beyond its own directory. Safe to run under systemd's
+# stock sandboxing rather than leaving it unconfined.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/wiresprite
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
