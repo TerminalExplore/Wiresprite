@@ -60,6 +60,12 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    # This job never checks out the repo (only downloads artifacts), so
+    # there's no cpp/ directory here — override the workflow-wide
+    # default (needed by the build job, which does check out into it).
+    defaults:
+      run:
+        working-directory: .
     steps:
       - uses: actions/download-artifact@v4
         with:
