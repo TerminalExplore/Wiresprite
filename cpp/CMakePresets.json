@@ -4,7 +4,6 @@
   "configurePresets": [
     {
       "name": "windows-msvc-release",
-      "generator": "Visual Studio 17 2022",
       "binaryDir": "${sourceDir}/build/windows-msvc-release",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release"

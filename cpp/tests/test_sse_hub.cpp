@@ -1,5 +1,6 @@
 #include <chrono>
 #include <future>
+#include <thread>
 
 #include "doctest.h"
 #include "poll/sse_hub.hpp"
