@@ -42,6 +42,7 @@ const char* const kIndexHtml = R"HTML(<!DOCTYPE html>
   <button type="button" class="nav-btn" data-page="overview">Overview</button>
 </nav>
 <section id="page-ports" class="page active">
+  <div id="summary" class="summary-grid"></div>
   <div id="alert-banner"></div>
   <div class="filter-bar">
     <span class="filter-label">Show:</span>
@@ -320,9 +321,43 @@ main {
 }
 
 .iface-warn {
-  color: var(--status-warning);
   font-size: 0.78rem;
   margin-top: 0.5rem;
+}
+
+.iface-warn-warning {
+  color: var(--status-warning);
+}
+
+.iface-warn-critical {
+  color: var(--status-critical);
+  font-weight: 600;
+}
+
+.down-ports {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.75rem;
+}
+
+.down-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.78rem;
+  color: var(--ink-secondary);
+  background: color-mix(in srgb, var(--ink) 4%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.2rem 0.6rem;
+  white-space: nowrap;
+}
+
+.no-up-note {
+  color: var(--ink-muted);
+  font-size: 0.85rem;
+  margin: 0;
 }
 
 /* Status pill: icon + text always together, never color alone. */
@@ -374,18 +409,14 @@ main {
 .sparkline {
   display: block;
   width: 100%;
-  height: 36px;
-  cursor: crosshair;
-}
-
-.overview-card .sparkline {
   height: 90px;
+  cursor: crosshair;
 }
 
 .sparkline-empty {
   color: var(--ink-muted);
   font-size: 0.78rem;
-  height: 36px;
+  height: 90px;
   display: flex;
   align-items: center;
 }
@@ -395,6 +426,11 @@ main {
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   margin-top: 0.1rem;
+}
+
+.sparkline-range {
+  font-size: 0.7rem;
+  color: var(--ink-muted);
 }
 
 .sparkline-tooltip {
@@ -431,6 +467,65 @@ main {
 
 .header-button:hover {
   background: color-mix(in srgb, var(--ink) 8%, transparent);
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.75rem;
+  max-width: 1200px;
+  margin: 0 auto 1rem;
+}
+
+.stat-tile {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.85rem 1.1rem;
+}
+
+.stat-tile-label {
+  color: var(--ink-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.stat-tile-value {
+  font-size: 1.55rem;
+  font-weight: 600;
+  margin-top: 0.2rem;
+}
+
+.stat-tile-sub {
+  color: var(--ink-muted);
+  font-size: 0.75rem;
+  margin-top: 0.1rem;
+}
+
+/* Meter: fill carries severity (accent/warning/critical); the track is
+   a lighter step of the same ramp so state reads across the whole bar. */
+.meter {
+  height: 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ink) 10%, transparent);
+  margin-top: 0.5rem;
+  overflow: hidden;
+}
+
+.meter-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+.meter-fill.warning {
+  background: var(--status-warning);
+}
+
+.meter-fill.critical {
+  background: var(--status-critical);
 }
 
 /* Icon + text always together, never color alone, matching the pills. */
@@ -606,7 +701,7 @@ function formatDuration(totalSeconds) {
 // would otherwise cause visible flicker/jank at push cadence.
 function createSparkline(opts) {
   const width = 140;
-  const height = 36;
+  const height = 90;
   const pad = 2;
   const svgNS = "http://www.w3.org/2000/svg";
 
@@ -622,6 +717,22 @@ function createSparkline(opts) {
   svg.setAttribute("viewBox", "0 0 " + width + " " + height);
   svg.setAttribute("class", "sparkline");
   svg.setAttribute("preserveAspectRatio", "none");
+
+  // Two recessive hairline gridlines (1/3, 2/3 height) so the chart
+  // reads as a real chart with a scale reference, not a bare line on
+  // an empty background. Fixed per instance since chart height never
+  // changes, so no need to recompute these in updateSparkline.
+  for (const frac of [1 / 3, 2 / 3]) {
+    const gridline = document.createElementNS(svgNS, "line");
+    const y = height * frac;
+    gridline.setAttribute("x1", "0");
+    gridline.setAttribute("x2", String(width));
+    gridline.setAttribute("y1", String(y));
+    gridline.setAttribute("y2", String(y));
+    gridline.setAttribute("stroke", "var(--gridline)");
+    gridline.setAttribute("stroke-width", "1");
+    svg.appendChild(gridline);
+  }
 
   const area = document.createElementNS(svgNS, "path");
   area.setAttribute("fill", opts.color);
@@ -663,7 +774,7 @@ function createSparkline(opts) {
 
   const empty = document.createElement("div");
   empty.className = "sparkline-empty";
-  empty.textContent = "collecting…";
+  empty.textContent = "No data yet";
   wrap.appendChild(empty);
 
   const tooltip = document.createElement("div");
@@ -675,8 +786,12 @@ function createSparkline(opts) {
   endLabel.className = "sparkline-value";
   wrap.appendChild(endLabel);
 
+  const range = document.createElement("div");
+  range.className = "sparkline-range";
+  wrap.appendChild(range);
+
   const handles = {
-    wrap, svg, area, line, crosshair, dot, hit, tooltip, endLabel, empty,
+    wrap, svg, area, line, crosshair, dot, hit, tooltip, endLabel, empty, range,
     opts, points: [], xAt: null, yAt: null, width, height, pad,
   };
 
@@ -731,7 +846,10 @@ function updateSparkline(handles, points) {
   handles.svg.style.display = enough ? "block" : "none";
   handles.empty.style.display = enough ? "none" : "flex";
   handles.endLabel.style.display = enough ? "block" : "none";
+  handles.range.style.display = enough ? "block" : "none";
   if (!enough) return;
+
+  handles.range.textContent = "last " + formatDuration(points[points.length - 1].t - points[0].t);
 
   const { width, height, pad } = handles;
   const maxValue = Math.max(...points.map((p) => p.v), 1);
@@ -815,13 +933,21 @@ function updateIfaceCard(handles, iface) {
   updateSparkline(handles.inSpark, inPoints);
   updateSparkline(handles.outSpark, outPoints);
 
+  // IF-MIB only gives cumulative counters, not a packet-count
+  // denominator, so there's no clean traffic-relative percentage to
+  // show — use magnitude tiers instead, the same kind of threshold
+  // call the alert banner already makes for "down" (any amount matters,
+  // just at different severities).
   const errors = iface.ifInErrors + iface.ifOutErrors;
   const discards = iface.ifInDiscards + iface.ifOutDiscards;
-  if (errors > 0 || discards > 0) {
-    handles.warn.textContent = errors + " errors, " + discards + " discards";
-    handles.warn.style.display = "block";
-  } else {
+  const total = errors + discards;
+  if (total === 0) {
     handles.warn.style.display = "none";
+  } else {
+    const critical = total >= 50;
+    handles.warn.className = "iface-warn " + (critical ? "iface-warn-critical" : "iface-warn-warning");
+    handles.warn.textContent = (critical ? "▲ " : "◆ ") + errors + " errors, " + discards + " discards";
+    handles.warn.style.display = "block";
   }
 
   handles.ifOperStatus = iface.ifOperStatus;
@@ -830,6 +956,11 @@ function updateIfaceCard(handles, iface) {
 
 )JS" R"JS(
 // ---- Device section: create once per device id, update in place.
+// Up ports (ifOperStatus === 1) get full cards with charts, in the
+// keyed ifaceCards Map so live updates keep diffing them. Everything
+// else (down, testing, unknown, admin-disabled) collapses into a
+// compact badge list — no chart DOM worth preserving, so it's cheap
+// to rebuild wholesale each push, same treatment as the errors table.
 function createDeviceSection() {
   const el = document.createElement("section");
   el.className = "device";
@@ -853,11 +984,21 @@ function createDeviceSection() {
   meta.style.display = "none";
   el.appendChild(meta);
 
+  const noUpNote = document.createElement("p");
+  noUpNote.className = "no-up-note";
+  noUpNote.textContent = "No ports currently up";
+  noUpNote.style.display = "none";
+  el.appendChild(noUpNote);
+
   const grid = document.createElement("div");
   grid.className = "interfaces";
   el.appendChild(grid);
 
-  return { el, title, host, err, meta, grid, ifaceCards: new Map() };
+  const downList = document.createElement("div");
+  downList.className = "down-ports";
+  el.appendChild(downList);
+
+  return { el, title, host, err, meta, noUpNote, grid, downList, ifaceCards: new Map() };
 }
 
 function updateDeviceSection(handles, device) {
@@ -869,7 +1010,9 @@ function updateDeviceSection(handles, device) {
     handles.err.textContent = device.error || "unreachable";
     handles.err.style.display = "block";
     handles.meta.style.display = "none";
+    handles.noUpNote.style.display = "none";
     handles.grid.style.display = "none";
+    handles.downList.style.display = "none";
     return;
   }
 
@@ -877,10 +1020,12 @@ function updateDeviceSection(handles, device) {
   handles.meta.style.display = "block";
   handles.meta.textContent =
     "uptime " + formatDuration(device.sysUpTimeTicks / 100) + " · " + device.interfaces.length + " interfaces";
-  handles.grid.style.display = "grid";
+
+  const upIfaces = device.interfaces.filter((i) => i.ifOperStatus === 1);
+  const otherIfaces = device.interfaces.filter((i) => i.ifOperStatus !== 1);
 
   const seen = new Set();
-  for (const iface of device.interfaces) {
+  for (const iface of upIfaces) {
     seen.add(iface.ifIndex);
     let cardHandles = handles.ifaceCards.get(iface.ifIndex);
     if (!cardHandles) {
@@ -896,6 +1041,98 @@ function updateDeviceSection(handles, device) {
       handles.ifaceCards.delete(ifIndex);
     }
   }
+  handles.grid.style.display = upIfaces.length > 0 ? "grid" : "none";
+  handles.noUpNote.style.display = upIfaces.length === 0 ? "block" : "none";
+
+  handles.downList.innerHTML = "";
+  handles.downList.style.display = otherIfaces.length > 0 ? "flex" : "none";
+  for (const iface of otherIfaces) {
+    const badge = document.createElement("span");
+    badge.className = "down-badge";
+    const icon = iface.ifOperStatus === 2 ? "▲" : "◆";
+    badge.textContent =
+      icon + " " + (iface.ifAlias || iface.ifDescr || "#" + iface.ifIndex) + " · " + statusLabel(iface.ifOperStatus);
+    handles.downList.appendChild(badge);
+  }
+}
+
+function buildStatTile(label, value) {
+  const tile = document.createElement("div");
+  tile.className = "stat-tile";
+  const labelEl = document.createElement("div");
+  labelEl.className = "stat-tile-label";
+  labelEl.textContent = label;
+  tile.appendChild(labelEl);
+  const valueEl = document.createElement("div");
+  valueEl.className = "stat-tile-value";
+  valueEl.textContent = value;
+  tile.appendChild(valueEl);
+  return tile;
+}
+
+// Three tiles, cheap to rebuild wholesale each push (three small text
+// nodes, no charts/listeners worth diffing). Utilization has no clean
+// backend-provided metric, so it's computed here from data the payload
+// already carries: current in+out rate summed over Up interfaces,
+// against their summed full-duplex capacity (ifSpeed x 2).
+function renderSummary(devices) {
+  const container = document.getElementById("summary");
+  container.innerHTML = "";
+
+  let upCount = 0;
+  let totalCount = 0;
+  let minUptimeTicks = null;
+  let minUptimeDevice = null;
+  let capacityBps = 0;
+  let currentBps = 0;
+
+  for (const device of devices) {
+    if (!device.reachable) continue;
+    if (minUptimeTicks === null || device.sysUpTimeTicks < minUptimeTicks) {
+      minUptimeTicks = device.sysUpTimeTicks;
+      minUptimeDevice = device.displayName;
+    }
+    for (const iface of device.interfaces) {
+      totalCount++;
+      if (iface.ifOperStatus === 1) {
+        upCount++;
+        capacityBps += iface.ifSpeed * 2;
+        const last = iface.history.length > 0 ? iface.history[iface.history.length - 1] : null;
+        if (last) currentBps += last.inBps + last.outBps;
+      }
+    }
+  }
+
+  container.appendChild(buildStatTile("Ports up", totalCount > 0 ? upCount + "/" + totalCount : "No data"));
+
+  const uptimeLabel = minUptimeDevice && devices.length > 1 ? "Uptime (" + minUptimeDevice + ")" : "Uptime";
+  container.appendChild(
+    buildStatTile(uptimeLabel, minUptimeTicks !== null ? formatDuration(minUptimeTicks / 100) : "No data")
+  );
+
+  const utilTile = document.createElement("div");
+  utilTile.className = "stat-tile";
+  const utilLabel = document.createElement("div");
+  utilLabel.className = "stat-tile-label";
+  utilLabel.textContent = "Traffic utilization";
+  utilTile.appendChild(utilLabel);
+  const utilValue = document.createElement("div");
+  utilValue.className = "stat-tile-value";
+  utilTile.appendChild(utilValue);
+  if (capacityBps > 0) {
+    const pct = (currentBps / capacityBps) * 100;
+    utilValue.textContent = pct.toFixed(1) + "%";
+    const meter = document.createElement("div");
+    meter.className = "meter";
+    const fill = document.createElement("div");
+    fill.className = "meter-fill" + (pct >= 90 ? " critical" : pct >= 70 ? " warning" : "");
+    fill.style.width = Math.min(100, pct) + "%";
+    meter.appendChild(fill);
+    utilTile.appendChild(meter);
+  } else {
+    utilValue.textContent = "No data";
+  }
+  container.appendChild(utilTile);
 }
 
 // Aggregates already-fetched status data into a single summary banner —
@@ -942,8 +1179,10 @@ function renderAlertBanner(devices) {
 }
 
 )JS" R"JS(
-// ---- Port status filter (All / Up / Down). Unreachable devices always
-// show (no ports to filter, and "device is down" matters regardless).
+// ---- Port status filter (All / Up / Down). Toggles which of the two
+// sections (Up cards, Down/other badges) a device shows; unreachable
+// devices always show regardless (no ports to filter, and "device is
+// down" matters no matter which filter is active).
 let currentFilter = "all";
 
 function applyFilter() {
@@ -952,16 +1191,15 @@ function applyFilter() {
       deviceHandles.el.classList.remove("hidden-by-filter");
       continue;
     }
-    let anyVisible = false;
-    for (const [, cardHandles] of deviceHandles.ifaceCards) {
-      const matches =
-        currentFilter === "all" ||
-        (currentFilter === "up" && cardHandles.ifOperStatus === 1) ||
-        (currentFilter === "down" && cardHandles.ifOperStatus === 2);
-      cardHandles.el.classList.toggle("hidden-by-filter", !matches);
-      if (matches) anyVisible = true;
-    }
-    deviceHandles.el.classList.toggle("hidden-by-filter", !anyVisible);
+    const hasUp = deviceHandles.ifaceCards.size > 0;
+    const hasDown = deviceHandles.downList.children.length > 0;
+    const showUp = currentFilter !== "down" && hasUp;
+    const showDown = currentFilter !== "up" && hasDown;
+
+    deviceHandles.grid.style.display = showUp ? "grid" : "none";
+    deviceHandles.noUpNote.style.display = currentFilter !== "down" && !hasUp ? "block" : "none";
+    deviceHandles.downList.style.display = showDown ? "flex" : "none";
+    deviceHandles.el.classList.toggle("hidden-by-filter", !showUp && !showDown);
   }
 }
 
@@ -1130,6 +1368,7 @@ function renderPorts(data) {
 
 function render(data) {
   lastStatusData = data;
+  renderSummary(data.devices);
   renderAlertBanner(data.devices);
   renderPorts(data);
   renderOverview(data);
