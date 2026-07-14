@@ -17,9 +17,9 @@ else()
 endif()
 
 # snmpmon_core sources are added incrementally phase by phase (see cpp/README.md).
-# Phase 0 only wires up the skeleton and an entrypoint that builds and runs.
 add_library(snmpmon_core STATIC
-  src/core_placeholder.cpp
+  src/snmp/oid.cpp
+  src/snmp/ber.cpp
 )
 
 target_include_directories(snmpmon_core PUBLIC
