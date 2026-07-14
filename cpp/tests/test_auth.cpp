@@ -58,3 +58,26 @@ TEST_CASE("SessionAuth: a session with a zero-minute TTL is immediately expired"
     std::string token = auth.createSession();
     CHECK_FALSE(auth.isValidSession(token));
 }
+
+TEST_CASE("SessionAuth: setCredentials takes effect immediately, without a restart") {
+    SessionAuth auth("admin", "", 60); // starts disabled, as first-run leaves it
+    CHECK_FALSE(auth.enabled());
+
+    auth.setCredentials("alice", sha256Hex("new-password"));
+
+    CHECK(auth.enabled());
+    CHECK(auth.checkCredentials("alice", "new-password"));
+    CHECK_FALSE(auth.checkCredentials("admin", "new-password")); // old username no longer valid
+}
+
+TEST_CASE("SessionAuth: remember-me sessions use rememberMeDays, not sessionTtlMinutes") {
+    // A 0-minute normal TTL expires instantly (as covered above); a
+    // remembered session with a real rememberMeDays should survive.
+    SessionAuth auth("admin", sha256Hex("hunter2"), /*sessionTtlMinutes=*/0, /*rememberMeDays=*/30);
+
+    std::string normal = auth.createSession(false);
+    CHECK_FALSE(auth.isValidSession(normal));
+
+    std::string remembered = auth.createSession(true);
+    CHECK(auth.isValidSession(remembered));
+}
