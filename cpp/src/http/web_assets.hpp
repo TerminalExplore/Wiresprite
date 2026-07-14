@@ -10,6 +10,7 @@ namespace wiresprite::web {
 extern const char* const kIndexHtml;
 extern const char* const kStyleCss;
 extern const char* const kAppJs;
+extern const char* const kFaviconSvg; // same spiderweb mark as the header's inline logo
 
 // The one page that needs to vary per-request (whether to show an
 // "invalid credentials" banner), so it's a function rather than a

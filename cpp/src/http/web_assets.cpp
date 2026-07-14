@@ -18,12 +18,38 @@ namespace wiresprite::web {
     "<polygon points=\"12,5.5 17.63,8.75 17.63,15.25 12,18.5 6.37,15.25 6.37,8.75\"/>"                               \
     "</svg>"
 
+// Same spiderweb mark as the header's inline logo, as a standalone SVG
+// document for the browser tab's favicon. Favicons render outside any
+// surrounding text color context, so this can't rely on currentColor
+// like the header icon does — instead it picks its own stroke color
+// via an embedded prefers-color-scheme media query (supported by
+// Chrome/Firefox for SVG favicons), so the tab icon still matches
+// light/dark like everything else on the page.
+const char* const kFaviconSvg = R"SVG(<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+<style>
+  .web { stroke: #0b0b0b; }
+  @media (prefers-color-scheme: dark) { .web { stroke: #ffffff; } }
+</style>
+<g class="web" fill="none" stroke-width="1.5" stroke-linecap="round">
+<line x1="12" y1="12" x2="12" y2="2"/>
+<line x1="12" y1="12" x2="20.66" y2="7"/>
+<line x1="12" y1="12" x2="20.66" y2="17"/>
+<line x1="12" y1="12" x2="12" y2="22"/>
+<line x1="12" y1="12" x2="3.34" y2="17"/>
+<line x1="12" y1="12" x2="3.34" y2="7"/>
+<polygon points="12,9 14.6,10.5 14.6,13.5 12,15 9.4,13.5 9.4,10.5"/>
+<polygon points="12,5.5 17.63,8.75 17.63,15.25 12,18.5 6.37,15.25 6.37,8.75"/>
+</g>
+</svg>
+)SVG";
+
 const char* const kIndexHtml = R"HTML(<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Wiresprite</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
@@ -1514,6 +1540,7 @@ std::string renderLoginPage(bool showError) {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Wiresprite &mdash; sign in</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
