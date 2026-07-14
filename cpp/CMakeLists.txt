@@ -22,6 +22,7 @@ add_library(snmpmon_core STATIC
   src/snmp/ber.cpp
   src/snmp/pdu.cpp
   src/snmp/udp_socket.cpp
+  src/snmp/client.cpp
 )
 
 target_include_directories(snmpmon_core PUBLIC
